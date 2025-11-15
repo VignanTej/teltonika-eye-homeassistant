@@ -1,0 +1,58 @@
+# Home Assistant Configuration for Teltonika EYE Sensors
+# Add this to your configuration.yaml
+
+# MQTT Configuration (if not already configured)
+mqtt:
+  broker: localhost  # Change to your MQTT broker IP
+  port: 1883
+  # username: your_mqtt_username  # Uncomment if using authentication
+  # password: your_mqtt_password
+  discovery: true
+  discovery_prefix: homeassistant
+
+# Optional: Create a dashboard for your sensors
+# This will be auto-created when sensors are discovered, but you can customize it
+
+# Example automation: Alert on high temperature
+automation:
+  - alias: "Teltonika EYE High Temperature Alert"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.teltonika_eye_*_temperature
+        above: 30  # Alert if temperature > 30°C
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "High Temperature Alert"
+          message: "Sensor {{ trigger.entity_id }} reports {{ trigger.to_state.state }}°C"
+
+  - alias: "Teltonika EYE Low Battery Alert"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.teltonika_eye_*_low_battery
+        to: 'on'
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "Low Battery Alert"
+          message: "Sensor {{ trigger.entity_id }} has low battery"
+
+  - alias: "Teltonika EYE Movement Detection"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.teltonika_eye_*_movement_state
+        to: 'on'
+    action:
+      - service: notify.persistent_notification
+        data:
+          title: "Movement Detected"
+          message: "Movement detected by {{ trigger.entity_id }}"
+
+# Example sensor template for temperature in Fahrenheit
+sensor:
+  - platform: template
+    sensors:
+      teltonika_eye_temp_fahrenheit:
+        friendly_name: "Teltonika EYE Temperature (°F)"
+        unit_of_measurement: "°F"
+        value_template: "{{ (states('sensor.teltonika_eye_temperature') | float * 9/5 + 32) | round(1) }}"

@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Teltonika EYE Sensors",
+        "description": "Set up Teltonika EYE Sensors integration",
+        "data": {
+          "scan_duration": "Scan duration (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Bluetooth adapter",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Integration is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Teltonika EYE Sensors Options",
+        "description": "Configure scan settings",
+        "data": {
+          "scan_duration": "Scan duration (seconds)"
+        }
+      }
+    }
+  }
+}

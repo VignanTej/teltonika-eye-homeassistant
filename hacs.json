@@ -1,0 +1,9 @@
+{
+  "name": "Teltonika EYE Sensors",
+  "content_in_root": false,
+  "filename": "teltonika_eye",
+  "country": ["LT", "US", "GB", "DE", "FR", "ES", "IT", "NL", "BE", "AT", "CH", "SE", "NO", "DK", "FI", "PL", "CZ", "SK", "HU", "SI", "HR", "BG", "RO", "GR", "CY", "MT", "LU", "IE", "PT", "EE", "LV"],
+  "homeassistant": "2023.1.0",
+  "iot_class": "Local Polling",
+  "render_readme": true
+}
