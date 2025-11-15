@@ -25,15 +25,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Teltonika EYE Sensors from a config entry."""
     _LOGGER.debug("Setting up Teltonika EYE integration with Bluetooth proxy support")
     
-    # Get approved devices from config entry data
-    approved_devices = set(entry.data.get("approved_devices", []))
-    
     coordinator = TeltonikaEYECoordinator(
         hass,
         _LOGGER,
         name="Teltonika EYE Sensors",
         update_interval=SCAN_INTERVAL,
-        approved_devices=approved_devices,
     )
 
     # Start Bluetooth advertisement tracking

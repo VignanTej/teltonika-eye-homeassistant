@@ -38,14 +38,10 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         logger: logging.Logger,
         name: str,
         update_interval: timedelta,
-        approved_devices: set[str] | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(hass, logger, name=name, update_interval=update_interval)
         self.devices: Dict[str, Dict[str, Any]] = {}
-        self.discovered_devices: Dict[str, Dict[str, Any]] = {}
-        self.approved_devices = approved_devices or set()
-        self.ignored_devices: set[str] = set()
         self._bluetooth_cancel = None
 
     async def async_start(self) -> None:
@@ -92,44 +88,9 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
 
         device_address = service_info.address
         
-        # Check if device is ignored
-        if device_address in self.ignored_devices:
-            return
-
-        # Store discovered device
-        self.discovered_devices[device_address] = parsed_data
-
-        # If device is approved, add to active devices
-        if device_address in self.approved_devices:
-            self.devices[device_address] = parsed_data
-            self.async_set_updated_data(self.devices)
-        else:
-            # Send notification for new device discovery
-            self._send_discovery_notification(parsed_data)
-
-    def _send_discovery_notification(self, device_data: Dict[str, Any]) -> None:
-        """Send notification about discovered device."""
-        device_name = device_data["device"]["name"]
-        device_address = device_data["device"]["address"]
-        
-        # Only send notification if we haven't already notified about this device
-        notification_id = f"teltonika_eye_discovery_{device_address.replace(':', '')}"
-        
-        self.hass.async_create_task(
-            self.hass.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "title": "New Teltonika EYE Sensor Discovered",
-                    "message": f"Found sensor '{device_name}' ({device_address}). "
-                              f"Temperature: {device_data['data']['sensors'].get('temperature', {}).get('value', 'N/A')}°C, "
-                              f"Humidity: {device_data['data']['sensors'].get('humidity', {}).get('value', 'N/A')}%. "
-                              f"Go to Settings → Devices & Services → Teltonika EYE Sensors "
-                              f"to add or ignore this device.",
-                    "notification_id": notification_id,
-                },
-            )
-        )
+        # Add all discovered devices for now (simplified)
+        self.devices[device_address] = parsed_data
+        self.async_set_updated_data(self.devices)
 
     async def _async_update_data(self) -> Dict[str, Dict[str, Any]]:
         """Update data via Bluetooth integration."""
@@ -137,41 +98,6 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         # This method mainly serves to keep the coordinator active
         return self.devices
 
-    def approve_device(self, device_address: str) -> None:
-        """Approve a discovered device for monitoring."""
-        if device_address in self.discovered_devices:
-            self.approved_devices.add(device_address)
-            self.devices[device_address] = self.discovered_devices[device_address]
-            
-            # Dismiss discovery notification
-            notification_id = f"teltonika_eye_discovery_{device_address.replace(':', '')}"
-            self.hass.async_create_task(
-                self.hass.services.async_call(
-                    "persistent_notification",
-                    "dismiss",
-                    {"notification_id": notification_id},
-                )
-            )
-            
-            self.async_set_updated_data(self.devices)
-            self.logger.info(f"Approved device {device_address} for monitoring")
-
-    def ignore_device(self, device_address: str) -> None:
-        """Ignore a discovered device."""
-        self.ignored_devices.add(device_address)
-        self.discovered_devices.pop(device_address, None)
-        
-        # Dismiss discovery notification
-        notification_id = f"teltonika_eye_discovery_{device_address.replace(':', '')}"
-        self.hass.async_create_task(
-            self.hass.services.async_call(
-                "persistent_notification",
-                "dismiss",
-                {"notification_id": notification_id},
-            )
-        )
-        
-        self.logger.info(f"Ignored device {device_address}")
 
     def _parse_manufacturer_data(
         self, service_info: BluetoothServiceInfoBleak
