@@ -1,9 +1,11 @@
 """Support for Teltonika EYE sensor entities."""
 from __future__ import annotations
 
-import logging
-from typing import Any
-
+from homeassistant.components.bluetooth.passive_update_processor import (
+    PassiveBluetoothDataProcessor,
+    PassiveBluetoothProcessorCoordinator,
+    PassiveBluetoothProcessorEntity,
+)
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -16,265 +18,171 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
 )
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, MODEL
-from .coordinator import TeltonikaEYECoordinator
-
-_LOGGER = logging.getLogger(__name__)
+from .const import DOMAIN
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Teltonika EYE sensor entities."""
-    coordinator: TeltonikaEYECoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator: PassiveBluetoothProcessorCoordinator = hass.data[DOMAIN][entry.entry_id]
+    
+    processor = PassiveBluetoothDataProcessor(
+        lambda service_info, last_service_info: TeltonikaEYESensorProcessor(
+            coordinator, service_info.address
+        )
+    )
+    
+    coordinator.async_register_processor(processor)
 
-    @callback
-    def async_add_sensor_entities():
-        """Add sensor entities for approved devices."""
+
+class TeltonikaEYESensorProcessor:
+    """Processor for Teltonika EYE sensor data."""
+
+    def __init__(self, coordinator: PassiveBluetoothProcessorCoordinator, address: str) -> None:
+        """Initialize the processor."""
+        self.coordinator = coordinator
+        self.address = address
+
+    def process(self, service_info, last_service_info) -> list[PassiveBluetoothProcessorEntity]:
+        """Process the service info and return entities."""
         entities = []
         
-        for device_address, device_data in coordinator.data.items():
-            sensors = device_data["data"]["sensors"]
-            
-            # Temperature sensor
-            if "temperature" in sensors:
-                entities.append(
-                    TeltonikaEYETemperatureSensor(coordinator, device_address)
-                )
-            
-            # Humidity sensor
-            if "humidity" in sensors:
-                entities.append(
-                    TeltonikaEYEHumiditySensor(coordinator, device_address)
-                )
-            
-            # Battery voltage sensor
-            if "battery_voltage" in sensors:
-                entities.append(
-                    TeltonikaEYEBatteryVoltageSensor(coordinator, device_address)
-                )
-            
-            # Movement count sensor
-            if "movement" in sensors:
-                entities.append(
-                    TeltonikaEYEMovementCountSensor(coordinator, device_address)
-                )
-            
-            # Angle sensors
-            if "angle" in sensors:
-                entities.append(
-                    TeltonikaEYEPitchSensor(coordinator, device_address)
-                )
-                entities.append(
-                    TeltonikaEYERollSensor(coordinator, device_address)
-                )
-            
-            # RSSI sensor (always present)
-            entities.append(
-                TeltonikaEYERSSISensor(coordinator, device_address)
+        # Temperature sensor
+        entities.append(
+            TeltonikaEYETemperatureSensor(
+                self.coordinator,
+                self.address,
+                "temperature",
             )
+        )
+        
+        # Humidity sensor
+        entities.append(
+            TeltonikaEYEHumiditySensor(
+                self.coordinator,
+                self.address,
+                "humidity",
+            )
+        )
+        
+        # Battery voltage sensor
+        entities.append(
+            TeltonikaEYEBatteryVoltageSensor(
+                self.coordinator,
+                self.address,
+                "battery_voltage",
+            )
+        )
+        
+        # Movement count sensor
+        entities.append(
+            TeltonikaEYEMovementCountSensor(
+                self.coordinator,
+                self.address,
+                "movement_count",
+            )
+        )
+        
+        # Pitch sensor
+        entities.append(
+            TeltonikaEYEPitchSensor(
+                self.coordinator,
+                self.address,
+                "pitch",
+            )
+        )
+        
+        # Roll sensor
+        entities.append(
+            TeltonikaEYERollSensor(
+                self.coordinator,
+                self.address,
+                "roll",
+            )
+        )
+        
+        # RSSI sensor
+        entities.append(
+            TeltonikaEYERSSISensor(
+                self.coordinator,
+                self.address,
+                "rssi",
+            )
+        )
+        
+        return entities
 
-        if entities:
-            async_add_entities(entities)
 
-    # Add entities for currently approved devices
-    async_add_sensor_entities()
-    
-    # Listen for new approved devices
-    coordinator.async_add_listener(async_add_sensor_entities)
-
-
-class TeltonikaEYESensorBase(CoordinatorEntity, SensorEntity):
+class TeltonikaEYESensorBase(PassiveBluetoothProcessorEntity, SensorEntity):
     """Base class for Teltonika EYE sensors."""
 
     def __init__(
         self,
-        coordinator: TeltonikaEYECoordinator,
-        device_address: str,
-        sensor_type: str,
+        coordinator: PassiveBluetoothProcessorCoordinator,
+        address: str,
+        key: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator)
-        self.device_address = device_address
-        self.sensor_type = sensor_type
-        
-        device_data = coordinator.data[device_address]
-        device_name = device_data["device"]["name"]
-        
-        self._attr_unique_id = f"{device_address}_{sensor_type}"
-        self._attr_name = f"{device_name} {sensor_type.replace('_', ' ').title()}"
-        
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_address)},
-            name=device_name,
-            manufacturer=MANUFACTURER,
-            model=MODEL,
-            sw_version=str(device_data["data"]["protocol_version"]),
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        return (
-            self.coordinator.last_update_success
-            and self.device_address in self.coordinator.data
-        )
+        super().__init__(coordinator, address, key)
 
 
 class TeltonikaEYETemperatureSensor(TeltonikaEYESensorBase):
     """Temperature sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the temperature sensor."""
-        super().__init__(coordinator, device_address, "temperature")
-        self._attr_device_class = SensorDeviceClass.TEMPERATURE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
-        if "temperature" in sensors:
-            return sensors["temperature"]["value"]
-        return None
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
 
 
 class TeltonikaEYEHumiditySensor(TeltonikaEYESensorBase):
     """Humidity sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the humidity sensor."""
-        super().__init__(coordinator, device_address, "humidity")
-        self._attr_device_class = SensorDeviceClass.HUMIDITY
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = PERCENTAGE
-
-    @property
-    def native_value(self) -> int | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
-        if "humidity" in sensors:
-            return sensors["humidity"]["value"]
-        return None
+    _attr_device_class = SensorDeviceClass.HUMIDITY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
 
 
 class TeltonikaEYEBatteryVoltageSensor(TeltonikaEYESensorBase):
     """Battery voltage sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the battery voltage sensor."""
-        super().__init__(coordinator, device_address, "battery_voltage")
-        self._attr_device_class = SensorDeviceClass.VOLTAGE
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
-        if "battery_voltage" in sensors:
-            return sensors["battery_voltage"]["value"]
-        return None
+    _attr_device_class = SensorDeviceClass.VOLTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
 
 
 class TeltonikaEYEMovementCountSensor(TeltonikaEYESensorBase):
     """Movement count sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the movement count sensor."""
-        super().__init__(coordinator, device_address, "movement_count")
-        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-        self._attr_icon = "mdi:motion-sensor"
-
-    @property
-    def native_value(self) -> int | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
-        if "movement" in sensors:
-            return sensors["movement"]["count"]
-        return None
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_icon = "mdi:motion-sensor"
 
 
 class TeltonikaEYEPitchSensor(TeltonikaEYESensorBase):
     """Pitch angle sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the pitch sensor."""
-        super().__init__(coordinator, device_address, "pitch")
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "°"
-        self._attr_icon = "mdi:angle-acute"
-
-    @property
-    def native_value(self) -> int | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
-        if "angle" in sensors:
-            return sensors["angle"]["pitch"]
-        return None
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "°"
+    _attr_icon = "mdi:angle-acute"
 
 
 class TeltonikaEYERollSensor(TeltonikaEYESensorBase):
     """Roll angle sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the roll sensor."""
-        super().__init__(coordinator, device_address, "roll")
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = "°"
-        self._attr_icon = "mdi:angle-acute"
-
-    @property
-    def native_value(self) -> int | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
-        if "angle" in sensors:
-            return sensors["angle"]["roll"]
-        return None
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "°"
+    _attr_icon = "mdi:angle-acute"
 
 
 class TeltonikaEYERSSISensor(TeltonikaEYESensorBase):
     """RSSI sensor for Teltonika EYE."""
 
-    def __init__(self, coordinator: TeltonikaEYECoordinator, device_address: str) -> None:
-        """Initialize the RSSI sensor."""
-        super().__init__(coordinator, device_address, "rssi")
-        self._attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
-        self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
-        self._attr_entity_category = "diagnostic"
-
-    @property
-    def native_value(self) -> int | None:
-        """Return the state of the sensor."""
-        if self.device_address not in self.coordinator.data:
-            return None
-        
-        device_data = self.coordinator.data[self.device_address]["device"]
-        return device_data.get("rssi")
+    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+    _attr_entity_category = "diagnostic"

@@ -2,14 +2,21 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 
+from homeassistant.components.bluetooth import BluetoothScanningMode
+from homeassistant.components.bluetooth.passive_update_processor import (
+    PassiveBluetoothDataProcessor,
+    PassiveBluetoothDataUpdate,
+    PassiveBluetoothEntityKey,
+    PassiveBluetoothProcessorCoordinator,
+    PassiveBluetoothProcessorEntity,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
-from .coordinator import TeltonikaEYECoordinator
+from .parser import TeltonikaEYEParser
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,48 +25,40 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
 ]
 
-SCAN_INTERVAL = timedelta(seconds=30)
+
+def process_service_info(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    data: PassiveBluetoothDataUpdate,
+) -> PassiveBluetoothDataUpdate:
+    """Process service info."""
+    return TeltonikaEYEParser().update(data)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Teltonika EYE Sensors from a config entry."""
-    _LOGGER.debug("Setting up Teltonika EYE integration with Bluetooth proxy support")
-    
-    coordinator = TeltonikaEYECoordinator(
+    coordinator = PassiveBluetoothProcessorCoordinator(
         hass,
         _LOGGER,
-        name="Teltonika EYE Sensors",
-        update_interval=SCAN_INTERVAL,
+        address=None,  # Listen to all devices
+        mode=BluetoothScanningMode.PASSIVE,
+        update_method=process_service_info,
+        entry=entry,
     )
-
-    # Start Bluetooth advertisement tracking
-    await coordinator.async_start()
-
-    # Initial data refresh
-    await coordinator.async_config_entry_first_refresh()
-
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = coordinator
-
+    
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
-    entry.async_on_unload(coordinator.async_stop)
-
+    
+    entry.async_on_unload(
+        coordinator.async_start()
+    )
+    
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _LOGGER.debug("Unloading Teltonika EYE integration")
-    
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
-
     return unload_ok
-
-
-async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
