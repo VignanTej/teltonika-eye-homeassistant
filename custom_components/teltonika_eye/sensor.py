@@ -16,7 +16,7 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -35,50 +35,60 @@ async def async_setup_entry(
     """Set up Teltonika EYE sensor entities."""
     coordinator: TeltonikaEYECoordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    entities = []
-    
-    for device_address, device_data in coordinator.data.items():
-        sensors = device_data["data"]["sensors"]
+    @callback
+    def async_add_sensor_entities():
+        """Add sensor entities for approved devices."""
+        entities = []
         
-        # Temperature sensor
-        if "temperature" in sensors:
+        for device_address, device_data in coordinator.data.items():
+            sensors = device_data["data"]["sensors"]
+            
+            # Temperature sensor
+            if "temperature" in sensors:
+                entities.append(
+                    TeltonikaEYETemperatureSensor(coordinator, device_address)
+                )
+            
+            # Humidity sensor
+            if "humidity" in sensors:
+                entities.append(
+                    TeltonikaEYEHumiditySensor(coordinator, device_address)
+                )
+            
+            # Battery voltage sensor
+            if "battery_voltage" in sensors:
+                entities.append(
+                    TeltonikaEYEBatteryVoltageSensor(coordinator, device_address)
+                )
+            
+            # Movement count sensor
+            if "movement" in sensors:
+                entities.append(
+                    TeltonikaEYEMovementCountSensor(coordinator, device_address)
+                )
+            
+            # Angle sensors
+            if "angle" in sensors:
+                entities.append(
+                    TeltonikaEYEPitchSensor(coordinator, device_address)
+                )
+                entities.append(
+                    TeltonikaEYERollSensor(coordinator, device_address)
+                )
+            
+            # RSSI sensor (always present)
             entities.append(
-                TeltonikaEYETemperatureSensor(coordinator, device_address)
+                TeltonikaEYERSSISensor(coordinator, device_address)
             )
-        
-        # Humidity sensor
-        if "humidity" in sensors:
-            entities.append(
-                TeltonikaEYEHumiditySensor(coordinator, device_address)
-            )
-        
-        # Battery voltage sensor
-        if "battery_voltage" in sensors:
-            entities.append(
-                TeltonikaEYEBatteryVoltageSensor(coordinator, device_address)
-            )
-        
-        # Movement count sensor
-        if "movement" in sensors:
-            entities.append(
-                TeltonikaEYEMovementCountSensor(coordinator, device_address)
-            )
-        
-        # Angle sensors
-        if "angle" in sensors:
-            entities.append(
-                TeltonikaEYEPitchSensor(coordinator, device_address)
-            )
-            entities.append(
-                TeltonikaEYERollSensor(coordinator, device_address)
-            )
-        
-        # RSSI sensor (always present)
-        entities.append(
-            TeltonikaEYERSSISensor(coordinator, device_address)
-        )
 
-    async_add_entities(entities)
+        if entities:
+            async_add_entities(entities)
+
+    # Add entities for currently approved devices
+    async_add_sensor_entities()
+    
+    # Listen for new approved devices
+    coordinator.async_add_listener(async_add_sensor_entities)
 
 
 class TeltonikaEYESensorBase(CoordinatorEntity, SensorEntity):

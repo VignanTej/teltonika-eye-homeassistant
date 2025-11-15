@@ -1,14 +1,33 @@
-# Teltonika EYE Sensors - Home Assistant Custom Integration
+# Teltonika EYE Sensors - Home Assistant Custom Integration v1.1.0
 
-A native Home Assistant custom integration for Teltonika EYE sensors that uses Bluetooth LE to automatically discover and monitor sensors.
+A native Home Assistant custom integration for Teltonika EYE sensors with **Bluetooth proxy support** and **enhanced device discovery**.
+
+## 🎉 New in v1.1.0
+
+### ✅ Bluetooth Proxy Support
+- **Full ESP32 Bluetooth proxy compatibility**
+- **Extended range** through distributed proxy network
+- **Better reliability** via Home Assistant's Bluetooth integration
+- **Real-time updates** through advertisement callbacks
+
+### ✅ Enhanced Device Discovery
+- **User-controlled onboarding** - Choose which devices to monitor
+- **Discovery notifications** - Get notified when new sensors are found
+- **Device management** - Approve or ignore devices through UI
+- **Live sensor data** - See current readings during device selection
+
+### ✅ Bug Fixes
+- **Fixed magnetic sensor logic** - Now correctly reports open/closed states
+- **Improved performance** - Event-driven architecture instead of polling
 
 ## Features
 
-- **Automatic Discovery**: Sensors are automatically discovered via Bluetooth LE
+- **Bluetooth Proxy Compatible**: Works with ESP32 Bluetooth proxies for extended range
+- **Smart Discovery**: User-controlled device onboarding with notifications
 - **Multiple Sensor Types**: Temperature, humidity, movement, magnetic field, battery monitoring
 - **Native Integration**: Full Home Assistant integration with proper device classes
-- **Real-time Updates**: Configurable scan intervals (default: 30 seconds)
-- **Device Management**: Proper device information and entity organization
+- **Real-time Updates**: Event-driven updates via Bluetooth callbacks
+- **Device Management**: Complete control over which devices to monitor
 - **Battery Monitoring**: Low battery alerts and voltage monitoring
 
 ## Installation

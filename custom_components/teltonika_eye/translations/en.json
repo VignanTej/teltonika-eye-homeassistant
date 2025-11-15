@@ -3,27 +3,44 @@
     "step": {
       "user": {
         "title": "Teltonika EYE Sensors",
-        "description": "Set up Teltonika EYE Sensors integration",
+        "description": "Set up Teltonika EYE Sensors integration with Bluetooth proxy support",
         "data": {
           "scan_duration": "Scan duration (seconds)"
+        }
+      },
+      "select_devices": {
+        "title": "Select Teltonika EYE Sensors",
+        "description": "Found {device_count} Teltonika EYE sensor(s). Select which devices you want to monitor:",
+        "data": {
+          "devices": "Select devices to monitor"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to Bluetooth adapter",
+      "cannot_connect": "Bluetooth integration not found. Please set up Bluetooth integration first.",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
-      "already_configured": "Integration is already configured"
+      "already_configured": "Integration is already configured",
+      "no_devices": "No devices available to manage"
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Teltonika EYE Sensors Options",
-        "description": "Configure scan settings",
+        "description": "Configure scan settings and manage devices",
         "data": {
-          "scan_duration": "Scan duration (seconds)"
+          "scan_duration": "Scan duration (seconds)",
+          "manage_devices": "Manage discovered devices"
+        }
+      },
+      "manage_devices": {
+        "title": "Manage Teltonika EYE Devices",
+        "description": "Approved: {approved_count} devices, Discovered: {discovered_count} new devices",
+        "data": {
+          "approved_devices": "Currently monitored devices",
+          "ignored_devices": "Ignore these discovered devices"
         }
       }
     }

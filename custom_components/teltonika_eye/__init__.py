@@ -7,7 +7,6 @@ from datetime import timedelta
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN
 from .coordinator import TeltonikaEYECoordinator
@@ -24,16 +23,23 @@ SCAN_INTERVAL = timedelta(seconds=30)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Teltonika EYE Sensors from a config entry."""
-    _LOGGER.debug("Setting up Teltonika EYE integration")
+    _LOGGER.debug("Setting up Teltonika EYE integration with Bluetooth proxy support")
+    
+    # Get approved devices from config entry data
+    approved_devices = set(entry.data.get("approved_devices", []))
     
     coordinator = TeltonikaEYECoordinator(
         hass,
         _LOGGER,
         name="Teltonika EYE Sensors",
         update_interval=SCAN_INTERVAL,
-        scan_duration=entry.options.get("scan_duration", 5.0),
+        approved_devices=approved_devices,
     )
 
+    # Start Bluetooth advertisement tracking
+    await coordinator.async_start()
+
+    # Initial data refresh
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})
@@ -42,6 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    entry.async_on_unload(coordinator.async_stop)
 
     return True
 

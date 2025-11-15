@@ -1,17 +1,17 @@
-"""Data update coordinator for Teltonika EYE Sensors."""
+"""Data update coordinator for Teltonika EYE Sensors with Bluetooth proxy support."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import struct
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from bleak import BleakScanner
-from bleak.backends.device import BLEDevice
-from bleak.backends.scanner import AdvertisementData
-
-from homeassistant.core import HomeAssistant
+from homeassistant.components.bluetooth import (
+    BluetoothServiceInfoBleak,
+    async_discovered_service_info,
+    async_track_bluetooth_advertisement,
+)
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -30,7 +30,7 @@ from .const import (
 
 
 class TeltonikaEYECoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from Teltonika EYE sensors."""
+    """Class to manage Teltonika EYE sensors via Home Assistant Bluetooth integration."""
 
     def __init__(
         self,
@@ -38,57 +38,149 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         logger: logging.Logger,
         name: str,
         update_interval: timedelta,
-        scan_duration: float = 5.0,
+        approved_devices: set[str] | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(hass, logger, name=name, update_interval=update_interval)
-        self.scan_duration = scan_duration
         self.devices: Dict[str, Dict[str, Any]] = {}
+        self.discovered_devices: Dict[str, Dict[str, Any]] = {}
+        self.approved_devices = approved_devices or set()
+        self.ignored_devices: set[str] = set()
+        self._bluetooth_cancel = None
+
+    async def async_start(self) -> None:
+        """Start listening for Bluetooth advertisements via HA Bluetooth integration."""
+        self.logger.debug("Starting Bluetooth advertisement tracking")
+        
+        # Track advertisements for Teltonika devices
+        self._bluetooth_cancel = async_track_bluetooth_advertisement(
+            self.hass,
+            self._bluetooth_callback,
+            {"manufacturer_id": TELTONIKA_COMPANY_ID},
+        )
+        
+        # Also check for already discovered devices
+        await self._check_existing_discoveries()
+
+    async def async_stop(self) -> None:
+        """Stop listening for Bluetooth advertisements."""
+        if self._bluetooth_cancel:
+            self._bluetooth_cancel()
+            self._bluetooth_cancel = None
+
+    async def _check_existing_discoveries(self) -> None:
+        """Check for already discovered Teltonika devices."""
+        discovered = async_discovered_service_info(self.hass)
+        
+        for service_info in discovered:
+            if TELTONIKA_COMPANY_ID in service_info.manufacturer_data:
+                self._process_advertisement(service_info)
+
+    @callback
+    def _bluetooth_callback(
+        self, service_info: BluetoothServiceInfoBleak, change: str
+    ) -> None:
+        """Handle Bluetooth advertisement callback."""
+        if change == "advertisement":
+            self._process_advertisement(service_info)
+
+    def _process_advertisement(self, service_info: BluetoothServiceInfoBleak) -> None:
+        """Process a Bluetooth advertisement."""
+        parsed_data = self._parse_manufacturer_data(service_info)
+        if not parsed_data:
+            return
+
+        device_address = service_info.address
+        
+        # Check if device is ignored
+        if device_address in self.ignored_devices:
+            return
+
+        # Store discovered device
+        self.discovered_devices[device_address] = parsed_data
+
+        # If device is approved, add to active devices
+        if device_address in self.approved_devices:
+            self.devices[device_address] = parsed_data
+            self.async_set_updated_data(self.devices)
+        else:
+            # Send notification for new device discovery
+            self._send_discovery_notification(parsed_data)
+
+    def _send_discovery_notification(self, device_data: Dict[str, Any]) -> None:
+        """Send notification about discovered device."""
+        device_name = device_data["device"]["name"]
+        device_address = device_data["device"]["address"]
+        
+        # Only send notification if we haven't already notified about this device
+        notification_id = f"teltonika_eye_discovery_{device_address.replace(':', '')}"
+        
+        self.hass.async_create_task(
+            self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "title": "New Teltonika EYE Sensor Discovered",
+                    "message": f"Found sensor '{device_name}' ({device_address}). "
+                              f"Temperature: {device_data['data']['sensors'].get('temperature', {}).get('value', 'N/A')}°C, "
+                              f"Humidity: {device_data['data']['sensors'].get('humidity', {}).get('value', 'N/A')}%. "
+                              f"Go to Settings → Devices & Services → Teltonika EYE Sensors "
+                              f"to add or ignore this device.",
+                    "notification_id": notification_id,
+                },
+            )
+        )
 
     async def _async_update_data(self) -> Dict[str, Dict[str, Any]]:
-        """Update data via library."""
-        try:
-            return await self._scan_for_devices()
-        except Exception as exception:
-            raise UpdateFailed(f"Error communicating with API: {exception}") from exception
+        """Update data via Bluetooth integration."""
+        # With Bluetooth integration, data is updated via callbacks
+        # This method mainly serves to keep the coordinator active
+        return self.devices
 
-    async def _scan_for_devices(self) -> Dict[str, Dict[str, Any]]:
-        """Scan for Teltonika EYE devices."""
-        discovered_devices = {}
-        
-        def detection_callback(device: BLEDevice, advertisement_data: AdvertisementData):
-            """Handle discovered device."""
-            if advertisement_data.manufacturer_data:
-                parsed_data = self._parse_manufacturer_data(
-                    device, advertisement_data.manufacturer_data
+    def approve_device(self, device_address: str) -> None:
+        """Approve a discovered device for monitoring."""
+        if device_address in self.discovered_devices:
+            self.approved_devices.add(device_address)
+            self.devices[device_address] = self.discovered_devices[device_address]
+            
+            # Dismiss discovery notification
+            notification_id = f"teltonika_eye_discovery_{device_address.replace(':', '')}"
+            self.hass.async_create_task(
+                self.hass.services.async_call(
+                    "persistent_notification",
+                    "dismiss",
+                    {"notification_id": notification_id},
                 )
-                if parsed_data:
-                    discovered_devices[device.address] = parsed_data
+            )
+            
+            self.async_set_updated_data(self.devices)
+            self.logger.info(f"Approved device {device_address} for monitoring")
 
-        try:
-            scanner = BleakScanner(detection_callback=detection_callback)
-            await scanner.start()
-            await asyncio.sleep(self.scan_duration)
-            await scanner.stop()
-            
-            # Update our devices dict with new data
-            for address, data in discovered_devices.items():
-                self.devices[address] = data
-                
-            return self.devices
-            
-        except Exception as err:
-            self.logger.error("Error during BLE scan: %s", err)
-            raise UpdateFailed(f"Error during BLE scan: {err}") from err
+    def ignore_device(self, device_address: str) -> None:
+        """Ignore a discovered device."""
+        self.ignored_devices.add(device_address)
+        self.discovered_devices.pop(device_address, None)
+        
+        # Dismiss discovery notification
+        notification_id = f"teltonika_eye_discovery_{device_address.replace(':', '')}"
+        self.hass.async_create_task(
+            self.hass.services.async_call(
+                "persistent_notification",
+                "dismiss",
+                {"notification_id": notification_id},
+            )
+        )
+        
+        self.logger.info(f"Ignored device {device_address}")
 
     def _parse_manufacturer_data(
-        self, device: BLEDevice, manufacturer_data: Dict[int, bytes]
+        self, service_info: BluetoothServiceInfoBleak
     ) -> Optional[Dict[str, Any]]:
         """Parse Teltonika manufacturer-specific data."""
-        if TELTONIKA_COMPANY_ID not in manufacturer_data:
+        if TELTONIKA_COMPANY_ID not in service_info.manufacturer_data:
             return None
 
-        data = manufacturer_data[TELTONIKA_COMPANY_ID]
+        data = service_info.manufacturer_data[TELTONIKA_COMPANY_ID]
         
         if len(data) < 2:
             return None
@@ -102,9 +194,9 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         # Initialize result
         result = {
             "device": {
-                "address": device.address,
-                "name": device.name or f"Teltonika EYE {device.address[-8:].replace(':', '')}",
-                "rssi": getattr(device, 'rssi', None),
+                "address": service_info.address,
+                "name": service_info.name or f"Teltonika EYE {service_info.address[-8:].replace(':', '')}",
+                "rssi": service_info.rssi,
             },
             "data": {
                 "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -123,7 +215,7 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         data_offset = self._parse_movement_angle(data, data_offset, flags, result)
         data_offset = self._parse_battery_voltage(data, data_offset, flags, result)
         
-        # Parse magnetic sensor state
+        # Parse magnetic sensor state (FIXED: corrected open/closed logic)
         self._parse_magnetic_sensor(flags, result)
 
         return result
@@ -204,10 +296,11 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         return offset
 
     def _parse_magnetic_sensor(self, flags: int, result: Dict[str, Any]) -> None:
-        """Parse magnetic sensor state if present."""
+        """Parse magnetic sensor state if present (FIXED: corrected open/closed logic)."""
         if flags & (1 << FLAG_MAGNETIC_SENSOR):
+            # FIXED: Reversed the logic - magnetic field detected = closed, not detected = open
             magnetic_detected = bool(flags & (1 << FLAG_MAGNETIC_STATE))
             result["data"]["sensors"]["magnetic"] = {
                 "detected": magnetic_detected,
-                "state": "detected" if magnetic_detected else "not_detected"
+                "state": "closed" if magnetic_detected else "open"  # FIXED: Was reversed
             }

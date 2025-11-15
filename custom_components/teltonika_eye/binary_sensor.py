@@ -8,7 +8,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -27,29 +27,39 @@ async def async_setup_entry(
     """Set up Teltonika EYE binary sensor entities."""
     coordinator: TeltonikaEYECoordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    entities = []
-    
-    for device_address, device_data in coordinator.data.items():
-        sensors = device_data["data"]["sensors"]
+    @callback
+    def async_add_binary_sensor_entities():
+        """Add binary sensor entities for approved devices."""
+        entities = []
         
-        # Movement state binary sensor
-        if "movement" in sensors:
+        for device_address, device_data in coordinator.data.items():
+            sensors = device_data["data"]["sensors"]
+            
+            # Movement state binary sensor
+            if "movement" in sensors:
+                entities.append(
+                    TeltonikaEYEMovementSensor(coordinator, device_address)
+                )
+            
+            # Magnetic field binary sensor (FIXED: corrected open/closed logic)
+            if "magnetic" in sensors:
+                entities.append(
+                    TeltonikaEYEMagneticSensor(coordinator, device_address)
+                )
+            
+            # Low battery binary sensor (always present)
             entities.append(
-                TeltonikaEYEMovementSensor(coordinator, device_address)
+                TeltonikaEYELowBatterySensor(coordinator, device_address)
             )
-        
-        # Magnetic field binary sensor
-        if "magnetic" in sensors:
-            entities.append(
-                TeltonikaEYEMagneticSensor(coordinator, device_address)
-            )
-        
-        # Low battery binary sensor (always present)
-        entities.append(
-            TeltonikaEYELowBatterySensor(coordinator, device_address)
-        )
 
-    async_add_entities(entities)
+        if entities:
+            async_add_entities(entities)
+
+    # Add entities for currently approved devices
+    async_add_binary_sensor_entities()
+    
+    # Listen for new approved devices
+    coordinator.async_add_listener(async_add_binary_sensor_entities)
 
 
 class TeltonikaEYEBinarySensorBase(CoordinatorEntity, BinarySensorEntity):
@@ -121,13 +131,14 @@ class TeltonikaEYEMagneticSensor(TeltonikaEYEBinarySensorBase):
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if magnetic field is detected."""
+        """Return true if magnetic field is detected (closed state)."""
         if self.device_address not in self.coordinator.data:
             return None
         
         sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
         if "magnetic" in sensors:
-            return sensors["magnetic"]["detected"]
+            # FIXED: Use the corrected state from coordinator
+            return sensors["magnetic"]["state"] == "closed"
         return None
 
 
