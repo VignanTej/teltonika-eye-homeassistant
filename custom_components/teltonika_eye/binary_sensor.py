@@ -9,7 +9,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -150,7 +150,7 @@ class TeltonikaEYELowBatterySensor(TeltonikaEYEBinarySensorBase):
         """Initialize the low battery sensor."""
         super().__init__(coordinator, device_address, "low_battery")
         self._attr_device_class = BinarySensorDeviceClass.BATTERY
-        self._attr_entity_category = "diagnostic"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
     def is_on(self) -> bool | None:
