@@ -1,16 +1,16 @@
 """Data update coordinator for Teltonika EYE Sensors."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import struct
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from homeassistant.components.bluetooth import (
-    BluetoothServiceInfoBleak,
-    async_discovered_service_info,
-    async_track_bluetooth_advertisement,
-)
+from bleak import BleakScanner
+from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
+
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -30,7 +30,7 @@ from .const import (
 
 
 class TeltonikaEYECoordinator(DataUpdateCoordinator):
-    """Class to manage Teltonika EYE sensors via Home Assistant Bluetooth integration."""
+    """Class to manage Teltonika EYE sensors via BLE scanning."""
 
     def __init__(
         self,
@@ -38,74 +38,57 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         logger: logging.Logger,
         name: str,
         update_interval: timedelta,
+        scan_duration: float = 5.0,
     ) -> None:
         """Initialize."""
         super().__init__(hass, logger, name=name, update_interval=update_interval)
+        self.scan_duration = scan_duration
         self.devices: Dict[str, Dict[str, Any]] = {}
-        self._bluetooth_cancel = None
-
-    async def async_start(self) -> None:
-        """Start listening for Bluetooth advertisements."""
-        self.logger.debug("Starting Bluetooth advertisement tracking")
-        
-        # Track advertisements for Teltonika devices
-        self._bluetooth_cancel = async_track_bluetooth_advertisement(
-            self.hass,
-            self._bluetooth_callback,
-            {"manufacturer_id": TELTONIKA_COMPANY_ID},
-        )
-        
-        # Also check for already discovered devices
-        await self._check_existing_discoveries()
-
-    async def async_stop(self) -> None:
-        """Stop listening for Bluetooth advertisements."""
-        if self._bluetooth_cancel:
-            self._bluetooth_cancel()
-            self._bluetooth_cancel = None
-
-    async def _check_existing_discoveries(self) -> None:
-        """Check for already discovered Teltonika devices."""
-        discovered = async_discovered_service_info(self.hass)
-        
-        for service_info in discovered:
-            if TELTONIKA_COMPANY_ID in service_info.manufacturer_data:
-                self._process_advertisement(service_info)
-
-    @callback
-    def _bluetooth_callback(
-        self, service_info: BluetoothServiceInfoBleak, change: str
-    ) -> None:
-        """Handle Bluetooth advertisement callback."""
-        if change == "advertisement":
-            self._process_advertisement(service_info)
-
-    def _process_advertisement(self, service_info: BluetoothServiceInfoBleak) -> None:
-        """Process a Bluetooth advertisement."""
-        parsed_data = self._parse_manufacturer_data(service_info)
-        if not parsed_data:
-            return
-
-        device_address = service_info.address
-        
-        # Add discovered device
-        self.devices[device_address] = parsed_data
-        self.async_set_updated_data(self.devices)
 
     async def _async_update_data(self) -> Dict[str, Dict[str, Any]]:
-        """Update data via Bluetooth integration."""
-        # With Bluetooth integration, data is updated via callbacks
-        # This method mainly serves to keep the coordinator active
-        return self.devices
+        """Update data via library."""
+        try:
+            return await self._scan_for_devices()
+        except Exception as exception:
+            raise UpdateFailed(f"Error communicating with API: {exception}") from exception
+
+    async def _scan_for_devices(self) -> Dict[str, Dict[str, Any]]:
+        """Scan for Teltonika EYE devices."""
+        discovered_devices = {}
+        
+        def detection_callback(device: BLEDevice, advertisement_data: AdvertisementData):
+            """Handle discovered device."""
+            if advertisement_data.manufacturer_data:
+                parsed_data = self._parse_manufacturer_data(
+                    device, advertisement_data.manufacturer_data, advertisement_data.rssi
+                )
+                if parsed_data:
+                    discovered_devices[device.address] = parsed_data
+
+        try:
+            scanner = BleakScanner(detection_callback=detection_callback)
+            await scanner.start()
+            await asyncio.sleep(self.scan_duration)
+            await scanner.stop()
+            
+            # Update our devices dict with new data
+            for address, data in discovered_devices.items():
+                self.devices[address] = data
+                
+            return self.devices
+            
+        except Exception as err:
+            self.logger.error("Error during BLE scan: %s", err)
+            raise UpdateFailed(f"Error during BLE scan: {err}") from err
 
     def _parse_manufacturer_data(
-        self, service_info: BluetoothServiceInfoBleak
+        self, device: BLEDevice, manufacturer_data: Dict[int, bytes], rssi: int
     ) -> Optional[Dict[str, Any]]:
         """Parse Teltonika manufacturer-specific data."""
-        if TELTONIKA_COMPANY_ID not in service_info.manufacturer_data:
+        if TELTONIKA_COMPANY_ID not in manufacturer_data:
             return None
 
-        data = service_info.manufacturer_data[TELTONIKA_COMPANY_ID]
+        data = manufacturer_data[TELTONIKA_COMPANY_ID]
         
         if len(data) < 2:
             return None
@@ -119,9 +102,9 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         # Initialize result
         result = {
             "device": {
-                "address": service_info.address,
-                "name": service_info.name or f"Teltonika EYE {service_info.address[-8:].replace(':', '')}",
-                "rssi": service_info.rssi,
+                "address": device.address,
+                "name": device.name or f"Teltonika EYE {device.address[-8:].replace(':', '')}",
+                "rssi": rssi,
             },
             "data": {
                 "timestamp": datetime.utcnow().isoformat() + "Z",

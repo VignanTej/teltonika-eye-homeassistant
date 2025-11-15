@@ -31,6 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER,
         name="Teltonika EYE Sensors",
         update_interval=SCAN_INTERVAL,
+        scan_duration=entry.options.get("scan_duration", 5.0),
     )
 
     await coordinator.async_config_entry_first_refresh()
