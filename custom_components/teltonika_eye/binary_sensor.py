@@ -132,14 +132,20 @@ class TeltonikaEYEMagneticSensor(TeltonikaEYEBinarySensorBase):
 
     @property
     def is_on(self) -> bool | None:
-        """Return true if magnetic field is detected (closed state)."""
+        """Return true if no magnetic field is detected (open state).
+        
+        For BinarySensorDeviceClass.OPENING:
+        - is_on=True => Door/window is open (no magnetic field)
+        - is_on=False => Door/window is closed (magnetic field detected)
+        """
         if self.device_address not in self.coordinator.data:
             return None
         
         sensors = self.coordinator.data[self.device_address]["data"]["sensors"]
         if "magnetic" in sensors:
-            # FIXED: Use the corrected state from coordinator
-            return sensors["magnetic"]["state"] == "closed"
+            # Return True for "open" state (no magnetic field detected)
+            # Return False for "closed" state (magnetic field detected)
+            return sensors["magnetic"]["state"] == "open"
         return None
 
 

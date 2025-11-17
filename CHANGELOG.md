@@ -2,6 +2,17 @@
 
 All notable changes to the Teltonika EYE Sensors Home Assistant integration will be documented in this file.
 
+## [1.2.4] - 2024-11-17
+
+### 🐛 Bug Fixes
+
+#### Magnetic Sensor State Correction
+- **FIXED**: Magnetic sensor state was still reporting reversed in Home Assistant UI
+- **Issue**: The `is_on` property in `TeltonikaEYEMagneticSensor` was returning True when magnetic field was detected (closed state)
+- **Solution**: Corrected the logic to return True for "open" state (no magnetic field) and False for "closed" state (magnetic field detected)
+- **Impact**: Door/window sensors now properly show as "Closed" when the magnet is near and "Open" when the magnet is away
+- **Details**: With `BinarySensorDeviceClass.OPENING`, Home Assistant correctly interprets is_on=True as "open" and is_on=False as "closed"
+
 ## [1.1.0] - 2024-11-15
 
 ### 🎉 Major Improvements

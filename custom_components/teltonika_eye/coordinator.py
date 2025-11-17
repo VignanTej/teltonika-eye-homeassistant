@@ -204,11 +204,16 @@ class TeltonikaEYECoordinator(DataUpdateCoordinator):
         return offset
 
     def _parse_magnetic_sensor(self, flags: int, result: Dict[str, Any]) -> None:
-        """Parse magnetic sensor state if present (FIXED: corrected open/closed logic)."""
+        """Parse magnetic sensor state if present.
+        
+        Maps physical sensor state to logical door/window state:
+        - Magnetic field detected = door/window closed
+        - No magnetic field = door/window open
+        """
         if flags & (1 << FLAG_MAGNETIC_SENSOR):
-            # FIXED: Corrected the logic - magnetic field detected = closed, not detected = open
+            # Check if magnetic field is detected
             magnetic_detected = bool(flags & (1 << FLAG_MAGNETIC_STATE))
             result["data"]["sensors"]["magnetic"] = {
                 "detected": magnetic_detected,
-                "state": "closed" if magnetic_detected else "open"  # FIXED: Was reversed
+                "state": "closed" if magnetic_detected else "open"  # Physical state mapping
             }
