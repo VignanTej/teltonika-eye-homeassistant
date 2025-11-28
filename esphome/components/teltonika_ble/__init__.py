@@ -59,11 +59,21 @@ async def to_code(config):
 
 
 async def _register_device(component, device_conf):
-    mac = esp32_ble_tracker.as_hex(device_conf[CONF_MAC_ADDRESS])
+    # Convert MAC address to uint64_t
+    # The MAC address is a cv.MacAddress object with parts attribute
+    mac_address = device_conf[CONF_MAC_ADDRESS]
+    # Build uint64 from MAC parts [AA, BB, CC, DD, EE, FF]
+    mac_parts = mac_address.parts
+    mac_value = 0
+    for i, part in enumerate(mac_parts):
+        mac_value |= (part << (8 * (5 - i)))
+    
+    mac_int = cg.RawExpression(f"0x{mac_value:012X}ULL")
+    
     name = device_conf.get(CONF_NAME, "")
     timeout_ms = device_conf.get(CONF_TIMEOUT, 0)
     enable_rssi = device_conf.get(CONF_RSSI, True)
     enable_battery_level = device_conf.get(CONF_BATTERY_LEVEL, True)
     
     # Pass device configuration directly to the C++ component
-    cg.add(component.add_device(mac, name, timeout_ms, enable_rssi, enable_battery_level))
+    cg.add(component.add_device(mac_int, cg.std_string(name), timeout_ms, enable_rssi, enable_battery_level))
