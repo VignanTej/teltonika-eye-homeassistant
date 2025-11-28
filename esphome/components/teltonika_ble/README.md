@@ -163,10 +163,10 @@ rm -rf /data/external_components/*
 **Method 3: Use a specific commit hash**
 ```yaml
 external_components:
-  - source: github://VignanTej/teltonika-eye-homeassistant@b153b2e
+  - source: github://VignanTej/teltonika-eye-homeassistant@<latest-commit>
     components: [teltonika_ble]
 ```
-Replace `b153b2e` with the latest commit hash from https://github.com/VignanTej/teltonika-eye-homeassistant/commits/main
+Check https://github.com/VignanTej/teltonika-eye-homeassistant/commits/main for the latest commit hash
 
 After clearing cache or changing the refresh/commit, click "Clean Build Files" in the ESPHome UI before compiling.
 

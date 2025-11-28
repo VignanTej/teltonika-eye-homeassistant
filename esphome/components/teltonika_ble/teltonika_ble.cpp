@@ -8,14 +8,18 @@ static const char *const TAG = "teltonika_ble";
 TeltonikaBLEComponent::TeltonikaBLEComponent() = default;
 
 void TeltonikaBLEComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up Teltonika BLE component");
+  ESP_LOGI(TAG, "Setting up Teltonika BLE component...");
+  ESP_LOGI(TAG, "Discover mode: %s", this->discover_ ? "enabled" : "disabled");
+  ESP_LOGI(TAG, "Configured devices: %d", this->configured_devices_.size());
   this->last_scan_ms_ = millis();
+  ESP_LOGI(TAG, "Teltonika BLE component setup complete");
 }
 
 void TeltonikaBLEComponent::loop() {
   uint32_t now = millis();
 
   if (now - this->last_scan_ms_ >= this->scan_interval_ms_) {
+    ESP_LOGD(TAG, "Scan interval elapsed, checking for devices...");
     this->last_scan_ms_ = now;
   }
 
@@ -111,8 +115,12 @@ TeltonikaSensorSet &TeltonikaBLEComponent::create_sensor_entities(const std::str
 }
 
 bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &device) {
+  ESP_LOGV(TAG, "parse_device called for %s", device.address_str().c_str());
+  
   // Get manufacturer data as ServiceData vector
   auto manu_datas = device.get_manufacturer_datas();
+  
+  ESP_LOGD(TAG, "Device %s has %d manufacturer data entries", device.address_str().c_str(), manu_datas.size());
   
   // ESPHome stores manufacturer data as ServiceData
   // We need to iterate and find Teltonika company ID
@@ -120,11 +128,15 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
   std::vector<uint8_t> payload;
   
   for (const auto &manu : manu_datas) {
+    ESP_LOGD(TAG, "Checking manufacturer data, size: %d, first byte: 0x%02X",
+             manu.data.size(), manu.data.size() > 0 ? manu.data[0] : 0);
+    
     // ServiceData has uuid (ESPBTUUID) and data (vector<uint8_t>)
     // For manufacturer specific data, the company ID is embedded differently
     // Let's check the data payload directly - Teltonika data starts with protocol version 0x01
     if (manu.data.size() >= 2 && manu.data[0] == TELTONIKA_PROTOCOL_VERSION) {
       // This looks like Teltonika data
+      ESP_LOGI(TAG, "Found Teltonika device %s", device.address_str().c_str());
       payload = manu.data;
       found_teltonika = true;
       break;
