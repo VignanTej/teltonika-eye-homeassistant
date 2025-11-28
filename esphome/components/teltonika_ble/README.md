@@ -10,45 +10,46 @@ ESPHome recommends distributing non-core integrations through the [`external_com
 
 ### A. Reference a Git repository directly
 
-Once the code works end‑to‑end, you will be able to add the GitHub repository as an external component source:
+You can add the GitHub repository as an external component source:
 
 ```yaml
 external_components:
-  - source: github://<your-user>/teltonika-eye-homeassistant/esphome
+  - source: github://VignanTej/teltonika-eye-homeassistant@main
     components: [teltonika_ble]
+    refresh: 1d
 ```
 
-* Replace `<your-user>` with the actual GitHub owner once the repository is public.
-* ESPHome will fetch the `esphome/teltonika_ble/` folder at compile time.
+* ESPHome will fetch the component from `esphome/components/teltonika_ble/` at compile time.
 * You must use ESPHome ≥ 2022.3.0 (external components were added in that release).
+* The `refresh: 1d` parameter tells ESPHome to check for updates daily.
 
-### B. Reference a local path (recommended for local development)
+### B. Reference a local path (for development/testing)
 
-If you are prototyping locally or running ESPHome inside Home Assistant, copy the `esphome/teltonika_ble/` directory into your ESPHome project and add:
+If you are developing locally or want to modify the component, copy the `esphome/components/teltonika_ble/` directory into your ESPHome config folder and add:
 
 ```yaml
 external_components:
   - source:
       type: local
-      path: teltonika_ble
+      path: components
     components: [teltonika_ble]
 ```
 
-In this case your project structure may look like:
+In this case your project structure should look like:
 
 ```
-config/
-└─ esphome/
-   ├─ teltonika_gateway.yaml
-   ├─ teltonika_ble/            <- copied from this repo
-   │   ├─ __init__.py
-   │   ├─ teltonika_ble.h
-   │   ├─ teltonika_ble.cpp
-   │   └─ README.md
-   └─ secrets.yaml
+config/esphome/
+├─ teltonika_gateway.yaml
+├─ components/
+│   └─ teltonika_ble/           <- copied from this repo
+│       ├─ __init__.py
+│       ├─ teltonika_ble.h
+│       ├─ teltonika_ble.cpp
+│       └─ README.md
+└─ secrets.yaml
 ```
 
-ESPHome will load the component from the local folder at compile time, mirroring the behavior documented in the external components guide.
+ESPHome will load the component from the local components folder at compile time.
 
 > **Note:** The C++ source currently references ESPHome headers, so although the editor shows include errors, the code will compile once the component is fully implemented and built via the ESPHome build system.
 
@@ -97,10 +98,9 @@ esp32_ble_tracker:
     active: false
 
 external_components:
-  - source:
-      type: local
-      path: teltonika_ble          # or github://... when published
+  - source: github://VignanTej/teltonika-eye-homeassistant@main
     components: [teltonika_ble]
+    refresh: 1d
 
 teltonika_ble:
   discover: true
