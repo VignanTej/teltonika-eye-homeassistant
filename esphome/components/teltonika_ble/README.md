@@ -137,6 +137,41 @@ teltonika_ble:
 
 ---
 
+## 3. Clearing ESPHome Cache (Important!)
+
+If you've previously compiled with an older version of this component, ESPHome caches the external component code. **You must clear the cache** to get the latest version:
+
+**Method 1: Force immediate refresh**
+```yaml
+external_components:
+  - source: github://VignanTej/teltonika-eye-homeassistant@main
+    components: [teltonika_ble]
+    refresh: 0s  # Force immediate refresh instead of 1d
+```
+
+**Method 2: Clear the ESPHome cache directory**
+
+In Home Assistant ESPHome addon, delete the cache:
+```bash
+# Option A: Via Home Assistant Terminal addon
+rm -rf /data/external_components/*
+
+# Option B: Via File Editor or SSH
+# Delete folder: /data/external_components/
+```
+
+**Method 3: Use a specific commit hash**
+```yaml
+external_components:
+  - source: github://VignanTej/teltonika-eye-homeassistant@8b479de
+    components: [teltonika_ble]
+```
+Replace `8b479de` with the latest commit hash from https://github.com/VignanTej/teltonika-eye-homeassistant/commits/main
+
+After clearing cache or changing the refresh/commit, click "Clean Build Files" in the ESPHome UI before compiling.
+
+---
+
 ## 3. Project Status and TODO
 
 The current files are **scaffolding**:
