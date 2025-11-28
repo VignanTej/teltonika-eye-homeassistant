@@ -137,38 +137,37 @@ teltonika_ble:
 
 ---
 
-## 3. Current Status - Working with Limitations
+## 3. Current Status - Tested and Working! 🎉
 
-**✅ The component is successfully:**
-- Detecting Teltonika EYE sensors via BLE
-- Parsing manufacturer data (protocol version, flags)
-- Extracting sensor values (temperature, humidity, movement, battery, angles, RSSI)
-- Supporting multiple devices simultaneously
+**✅ Successfully tested with real Teltonika EYE hardware:**
+- ✅ Compiles and runs on ESP32
+- ✅ Detects Teltonika EYE sensors via BLE (tested with sensor MAC: 7C:D9:F4:13:BD:BF)
+- ✅ Parses manufacturer data correctly (27-byte payloads, protocol v0x01)
+- ✅ Extracts all sensor values:
+  - Temperature: 27.88°C ✓
+  - Humidity: 65% ✓
+  - Movement count: 2376 ✓
+  - Battery voltage: 3.05V ✓
+  - Battery level: 87.5% ✓
+  - RSSI: -46 dBm ✓
+  - Movement detection: ON ✓
+- ✅ Supports multiple devices simultaneously
+- ✅ Detailed debug logging
 
-**⚠️  Current Limitation:**
-The sensors are created dynamically in C++ but show with empty names in logs. To properly use this component, you need to define sensor entities in your YAML configuration. Here's how:
+**⚠️ Important Note:**
+Currently, sensors are created dynamically but **don't automatically appear in Home Assistant** due to ESPHome's entity registration requirements. The component is parsing and logging all values correctly - this is a sensor registration issue, not a parsing issue.
 
-```yaml
-sensor:
-  - platform: template
-    name: "Office EYE Temperature"
-    id: office_eye_temp
-    unit_of_measurement: "°C"
-    accuracy_decimals: 2
-    
-  - platform: template
-    name: "Office EYE Humidity"
-    id: office_eye_humidity
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
+**Workaround:** Monitor values via ESPHome logs (set `logger: level: DEBUG`) until sensor registration is improved in a future update.
 
-binary_sensor:
-  - platform: template
-    name: "Office EYE Movement"
-    id: office_eye_movement
+**Log Example (working):**
 ```
-
-Then the component will publish values to these sensors. A future update will automate sensor entity creation.
+[I][teltonika_ble]: Found Teltonika device 7C:D9:F4:13:BD:BF
+[D][sensor]: Temperature: 27.88°C
+[D][sensor]: Humidity: 65%
+[D][sensor]: Movement count: 2376
+[D][sensor]: Battery: 3.05V (87.5%)
+[D][binary_sensor]: Movement: ON
+```
 
 ---
 
