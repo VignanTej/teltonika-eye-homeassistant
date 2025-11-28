@@ -205,8 +205,8 @@ bool TeltonikaBLEComponent::parse_teltonika_payload(uint64_t mac,
     }
   }
 
-  // Parse magnetic sensor
-  cached.magnetic_detected = (flags & (1 << 3)) != 0;
+  // Parse magnetic sensor (inverted: 0 = detected, 1 = not detected)
+  cached.magnetic_detected = (flags & (1 << 3)) == 0;
   
   // Parse low battery
   cached.low_battery = (flags & (1 << 6)) != 0;
