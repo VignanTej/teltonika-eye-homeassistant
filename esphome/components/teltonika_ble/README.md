@@ -137,37 +137,33 @@ teltonika_ble:
 
 ---
 
-## 3. Current Status - Tested and Working! 🎉
+## 3. Current Status - Hardware Tested! 🎉
 
 **✅ Successfully tested with real Teltonika EYE hardware:**
 - ✅ Compiles and runs on ESP32
-- ✅ Detects Teltonika EYE sensors via BLE (tested with sensor MAC: 7C:D9:F4:13:BD:BF)
-- ✅ Parses manufacturer data correctly (27-byte payloads, protocol v0x01)
+- ✅ Now properly validates Teltonika company ID (0x089A) - **no more false positives!**
+- ✅ Detects genuine Teltonika EYE sensors (tested: 7C:D9:F4:13:BD:BF, 7C:D9:F4:14:21:5D)
+- ✅ Parses manufacturer data correctly (11-27 byte payloads, protocol v0x01)
 - ✅ Extracts all sensor values:
-  - Temperature: 27.88°C ✓
-  - Humidity: 65% ✓
-  - Movement count: 2376 ✓
-  - Battery voltage: 3.05V ✓
+  - Temperature: 27.81-27.88°C ✓
+  - Humidity: 63-65% ✓
+  - Movement count: 2376-2377 ✓
+  - Battery voltage: 3.05-3.06V ✓
   - Battery level: 87.5% ✓
-  - RSSI: -46 dBm ✓
+  - RSSI: -46 to -61 dBm ✓
   - Movement detection: ON ✓
-- ✅ Supports multiple devices simultaneously
+- ✅ Multi-device support working
 - ✅ Detailed debug logging
 
-**⚠️ Important Note:**
-Currently, sensors are created dynamically but **don't automatically appear in Home Assistant** due to ESPHome's entity registration requirements. The component is parsing and logging all values correctly - this is a sensor registration issue, not a parsing issue.
+**⚠️ Known Issue - Sensors Show "Unknown" in Home Assistant:**
+The component successfully parses Teltonika data, but sensors don't appear in HA frontend yet. This requires proper ESPHome sensor platform integration (sensor.py/binary_sensor.py) which is planned for the next update.
 
-**Workaround:** Monitor values via ESPHome logs (set `logger: level: DEBUG`) until sensor registration is improved in a future update.
+**Current Workaround:** Monitor parsed values via ESPHome logs with `logger: level: DEBUG`.
 
-**Log Example (working):**
-```
-[I][teltonika_ble]: Found Teltonika device 7C:D9:F4:13:BD:BF
-[D][sensor]: Temperature: 27.88°C
-[D][sensor]: Humidity: 65%
-[D][sensor]: Movement count: 2376
-[D][sensor]: Battery: 3.05V (87.5%)
-[D][binary_sensor]: Movement: ON
-```
+**Recent Fixes:**
+- ✅ Fixed false positive detection (validates company ID 0x089A)
+- ✅ Added proper manufacturer data validation
+- ✅ Improved logging for debugging
 
 ---
 

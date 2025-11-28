@@ -120,27 +120,57 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
   // Get manufacturer data as ServiceData vector
   auto manu_datas = device.get_manufacturer_datas();
   
-  ESP_LOGD(TAG, "Device %s has %d manufacturer data entries", device.address_str().c_str(), manu_datas.size());
+  if (manu_datas.empty()) {
+    return false;
+  }
   
-  // ESPHome stores manufacturer data as ServiceData
-  // We need to iterate and find Teltonika company ID
+  ESP_LOGV(TAG, "Device %s has %d manufacturer data entries", device.address_str().c_str(), manu_datas.size());
+  
+  // Find Teltonika manufacturer data by company ID
   bool found_teltonika = false;
   std::vector<uint8_t> payload;
   
   for (const auto &manu : manu_datas) {
-    ESP_LOGD(TAG, "Checking manufacturer data, size: %d, first byte: 0x%02X",
-             manu.data.size(), manu.data.size() > 0 ? manu.data[0] : 0);
+    // In ESPHome, manufacturer data company ID is stored in the UUID
+    // We need to extract the 16-bit company ID
+    auto uuid = manu.uuid.get_uuid();
+    uint16_t company_id = 0;
     
-    // ServiceData has uuid (ESPBTUUID) and data (vector<uint8_t>)
-    // For manufacturer specific data, the company ID is embedded differently
-    // Let's check the data payload directly - Teltonika data starts with protocol version 0x01
-    if (manu.data.size() >= 2 && manu.data[0] == TELTONIKA_PROTOCOL_VERSION) {
-      // This looks like Teltonika data
-      ESP_LOGI(TAG, "Found Teltonika device %s", device.address_str().c_str());
-      payload = manu.data;
-      found_teltonika = true;
-      break;
+    // Try uuid16 first (standard way for 16-bit UUIDs/company IDs)
+    if (uuid.uuid16 != 0) {
+      company_id = uuid.uuid16;
+    } else {
+      // Fall back to extracting from uuid128 (little-endian)
+      company_id = uuid.uuid128[0] | (uuid.uuid128[1] << 8);
     }
+    
+    ESP_LOGV(TAG, "Manufacturer data company ID: 0x%04X, size: %d", company_id, manu.data.size());
+    
+    // Check if this is Teltonika (company ID 0x089A)
+    if (company_id != TELTONIKA_COMPANY_ID) {
+      continue;
+    }
+    
+    // Validate payload
+    if (manu.data.size() < 2) {
+      ESP_LOGW(TAG, "Teltonika device %s has insufficient data (%d bytes)",
+               device.address_str().c_str(), manu.data.size());
+      continue;
+    }
+    
+    // Validate protocol version
+    if (manu.data[0] != TELTONIKA_PROTOCOL_VERSION) {
+      ESP_LOGW(TAG, "Teltonika device %s has unsupported protocol v0x%02X",
+               device.address_str().c_str(), manu.data[0]);
+      continue;
+    }
+    
+    // This is a valid Teltonika device
+    ESP_LOGI(TAG, "Found Teltonika device %s (company ID: 0x%04X, protocol: 0x%02X)",
+             device.address_str().c_str(), company_id, manu.data[0]);
+    payload = manu.data;
+    found_teltonika = true;
+    break;
   }
   
   if (!found_teltonika) {
