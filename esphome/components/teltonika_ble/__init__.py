@@ -59,15 +59,11 @@ async def to_code(config):
 
 
 async def _register_device(component, device_conf):
-    device = cg.struct_init(
-        TeltonikaDeviceConfig,
-        (
-            "mac_address",
-            esp32_ble_tracker.as_hex(device_conf[CONF_MAC_ADDRESS]),
-        ),
-        ("timeout", device_conf.get(CONF_TIMEOUT)),
-        ("name", device_conf.get(CONF_NAME, "")),
-        ("enable_rssi", device_conf.get(CONF_RSSI, True)),
-        ("enable_battery_level", device_conf.get(CONF_BATTERY_LEVEL, True)),
-    )
-    cg.add(component.add_device_config(device))
+    mac = esp32_ble_tracker.as_hex(device_conf[CONF_MAC_ADDRESS])
+    name = device_conf.get(CONF_NAME, "")
+    timeout_ms = device_conf.get(CONF_TIMEOUT, 0)
+    enable_rssi = device_conf.get(CONF_RSSI, True)
+    enable_battery_level = device_conf.get(CONF_BATTERY_LEVEL, True)
+    
+    # Pass device configuration directly to the C++ component
+    cg.add(component.add_device(mac, name, timeout_ms, enable_rssi, enable_battery_level))

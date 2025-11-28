@@ -18,9 +18,9 @@ static const uint16_t TELTONIKA_COMPANY_ID = 0x089A;
 static const uint8_t TELTONIKA_PROTOCOL_VERSION = 0x01;
 
 struct TeltonikaDeviceConfig {
-  esp32_ble_tracker::ESPBTDeviceAddress mac_address;
-  optional<uint32_t> timeout_ms;
+  uint64_t mac_address;
   std::string name;
+  uint32_t timeout_ms{0};
   bool enable_rssi{true};
   bool enable_battery_level{true};
 };
@@ -73,7 +73,7 @@ class TeltonikaBLEComponent : public Component, public esp32_ble_tracker::ESPBTD
   void set_global_rssi_enabled(bool enabled) { this->global_rssi_enabled_ = enabled; }
   void set_global_battery_level_enabled(bool enabled) { this->global_battery_level_enabled_ = enabled; }
 
-  void add_device_config(const TeltonikaDeviceConfig &cfg);
+  void add_device(uint64_t mac, const std::string &name, uint32_t timeout_ms, bool enable_rssi, bool enable_battery_level);
 
  protected:
   TeltonikaSensorSet &get_or_create_sensor_set(const std::string &key, const std::string &name, const TeltonikaDeviceConfig *cfg);

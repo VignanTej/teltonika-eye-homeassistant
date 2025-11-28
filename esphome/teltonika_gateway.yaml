@@ -20,7 +20,7 @@ captive_portal:
 logger:
   level: INFO
   logs:
-    teltonika_ble: DEBUG
+    teltonika_ble: INFO
 
 api:
 
@@ -40,7 +40,7 @@ esp32_ble_tracker:
     active: false
 
 external_components:
-  - source: github://<your-github-user>/teltonika-eye-homeassistant/esphome/components
+  - source: github://VignanTej/teltonika-eye-homeassistant/esphome/components
     components:
       - teltonika_ble
     refresh: 1d

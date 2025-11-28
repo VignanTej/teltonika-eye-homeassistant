@@ -40,7 +40,14 @@ void TeltonikaBLEComponent::dump_config() {
   }
 }
 
-void TeltonikaBLEComponent::add_device_config(const TeltonikaDeviceConfig &cfg) {
+void TeltonikaBLEComponent::add_device(uint64_t mac, const std::string &name, uint32_t timeout_ms,
+                                       bool enable_rssi, bool enable_battery_level) {
+  TeltonikaDeviceConfig cfg;
+  cfg.mac_address = mac;
+  cfg.name = name;
+  cfg.timeout_ms = timeout_ms;
+  cfg.enable_rssi = enable_rssi;
+  cfg.enable_battery_level = enable_battery_level;
   this->configured_devices_.push_back(cfg);
 }
 
@@ -130,8 +137,9 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
 
 optional<TeltonikaDeviceConfig> TeltonikaBLEComponent::find_device_config(
     const esp32_ble_tracker::ESPBTDeviceAddress &mac) const {
+  uint64_t mac_int = mac.address;
   for (const auto &cfg : this->configured_devices_) {
-    if (cfg.mac_address == mac) {
+    if (cfg.mac_address == mac_int) {
       return cfg;
     }
   }
