@@ -43,7 +43,7 @@ esp32_ble_tracker:
     active: false
 
 external_components:
-  - source: github://VignanTej/teltonika-eye-homeassistant@57d572a
+  - source: github://VignanTej/teltonika-eye-homeassistant
     components:
       - teltonika_ble
     refresh: 0s
