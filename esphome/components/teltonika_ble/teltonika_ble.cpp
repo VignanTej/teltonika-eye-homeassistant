@@ -32,9 +32,16 @@ void TeltonikaBLEComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "  Configured devices: %u", this->configured_devices_.size());
 
   for (const auto &cfg : this->configured_devices_) {
-    auto mac = cfg.mac_address.to_string();
-    ESP_LOGCONFIG(TAG, "    - Device %s (%s)", cfg.name.empty() ? mac.c_str() : cfg.name.c_str(), mac.c_str());
-    ESP_LOGCONFIG(TAG, "      Timeout: %d ms", cfg.timeout_ms.has_value() ? int(*cfg.timeout_ms) : int(this->global_timeout_ms_));
+    char mac_str[18];
+    sprintf(mac_str, "%02X:%02X:%02X:%02X:%02X:%02X",
+            (uint8_t)((cfg.mac_address >> 40) & 0xFF),
+            (uint8_t)((cfg.mac_address >> 32) & 0xFF),
+            (uint8_t)((cfg.mac_address >> 24) & 0xFF),
+            (uint8_t)((cfg.mac_address >> 16) & 0xFF),
+            (uint8_t)((cfg.mac_address >> 8) & 0xFF),
+            (uint8_t)(cfg.mac_address & 0xFF));
+    ESP_LOGCONFIG(TAG, "    - Device %s (%s)", cfg.name.empty() ? mac_str : cfg.name.c_str(), mac_str);
+    ESP_LOGCONFIG(TAG, "      Timeout: %u ms", cfg.timeout_ms > 0 ? cfg.timeout_ms : this->global_timeout_ms_);
     ESP_LOGCONFIG(TAG, "      RSSI sensor enabled: %s", YESNO(cfg.enable_rssi));
     ESP_LOGCONFIG(TAG, "      Battery level sensor enabled: %s", YESNO(cfg.enable_battery_level));
   }
@@ -64,39 +71,35 @@ TeltonikaSensorSet &TeltonikaBLEComponent::create_sensor_entities(const std::str
                                                                   const TeltonikaDeviceConfig *cfg) {
   TeltonikaSensorSet sensors;
 
-  auto make_sensor = [&](const std::string &suffix, const std::string &unit, int accuracy_decimals = 0,
-                         sensor::StateClass state_class = sensor::STATE_CLASS_NONE) -> sensor::Sensor * {
+  auto make_sensor = [&](const char *suffix) -> sensor::Sensor * {
     auto sensor_obj = new sensor::Sensor();
-    sensor_obj->set_name(name + " " + suffix);
-    sensor_obj->set_accuracy_decimals(accuracy_decimals);
-    sensor_obj->set_force_update(false);
-    sensor_obj->set_state_class(state_class);
-    App.register_sensor(sensor_obj);
+    std::string full_name = name + " " + suffix;
+    sensor_obj->set_name(full_name.c_str());
     return sensor_obj;
   };
 
-  auto make_binary = [&](const std::string &suffix) -> binary_sensor::BinarySensor * {
+  auto make_binary = [&](const char *suffix) -> binary_sensor::BinarySensor * {
     auto bs = new binary_sensor::BinarySensor();
-    bs->set_name(name + " " + suffix);
-    App.register_binary_sensor(bs);
+    std::string full_name = name + " " + suffix;
+    bs->set_name(full_name.c_str());
     return bs;
   };
 
-  sensors.temperature = make_sensor("Temperature", "°C", 2, sensor::STATE_CLASS_MEASUREMENT);
-  sensors.humidity = make_sensor("Humidity", "%", 0, sensor::STATE_CLASS_MEASUREMENT);
-  sensors.movement_count = make_sensor("Movement Count", "", 0, sensor::STATE_CLASS_TOTAL_INCREASING);
-  sensors.pitch = make_sensor("Pitch", "°", 0, sensor::STATE_CLASS_MEASUREMENT);
-  sensors.roll = make_sensor("Roll", "°", 0, sensor::STATE_CLASS_MEASUREMENT);
-  sensors.battery_voltage = make_sensor("Battery Voltage", "V", 3, sensor::STATE_CLASS_MEASUREMENT);
+  sensors.temperature = make_sensor("Temperature");
+  sensors.humidity = make_sensor("Humidity");
+  sensors.movement_count = make_sensor("Movement Count");
+  sensors.pitch = make_sensor("Pitch");
+  sensors.roll = make_sensor("Roll");
+  sensors.battery_voltage = make_sensor("Battery Voltage");
 
   bool enable_battery_level = cfg ? cfg->enable_battery_level : this->global_battery_level_enabled_;
   if (enable_battery_level) {
-    sensors.battery_level = make_sensor("Battery Level", "%", 0, sensor::STATE_CLASS_MEASUREMENT);
+    sensors.battery_level = make_sensor("Battery Level");
   }
 
   bool enable_rssi = cfg ? cfg->enable_rssi : this->global_rssi_enabled_;
   if (enable_rssi) {
-    sensors.rssi = make_sensor("RSSI", "dBm", 0, sensor::STATE_CLASS_MEASUREMENT);
+    sensors.rssi = make_sensor("RSSI");
   }
 
   sensors.movement_state = make_binary("Movement");
@@ -108,24 +111,42 @@ TeltonikaSensorSet &TeltonikaBLEComponent::create_sensor_entities(const std::str
 }
 
 bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &device) {
-  const auto &manu_data_map = device.get_manufacturer_datas();
-  auto it = manu_data_map.find(TELTONIKA_COMPANY_ID);
-  if (it == manu_data_map.end()) {
+  const auto &manu_datas = device.get_manufacturer_datas();
+  
+  // Search for Teltonika company ID in manufacturer data
+  bool found = false;
+  std::vector<uint8_t> payload;
+  
+  for (const auto &manu : manu_datas) {
+    if (manu.uuid.get_16bit() == TELTONIKA_COMPANY_ID) {
+      payload = manu.data;
+      found = true;
+      break;
+    }
+  }
+  
+  if (!found) {
     return false;
   }
 
   auto mac = device.address_uint64();
-  esp32_ble_tracker::ESPBTDeviceAddress addr(mac);
-  auto device_cfg = this->find_device_config(addr);
+  auto device_cfg = this->find_device_config(mac);
 
   if (!this->discover_ && !device_cfg.has_value()) {
     return false;
   }
 
-  std::string key = this->make_device_key(addr);
-  std::string name = this->make_device_name(device_cfg.has_value() ? device_cfg->name : "", addr.to_string());
-
-  const std::vector<uint8_t> &payload = it->second;
+  char mac_str[18];
+  sprintf(mac_str, "%02X:%02X:%02X:%02X:%02X:%02X",
+          (uint8_t)((mac >> 40) & 0xFF),
+          (uint8_t)((mac >> 32) & 0xFF),
+          (uint8_t)((mac >> 24) & 0xFF),
+          (uint8_t)((mac >> 16) & 0xFF),
+          (uint8_t)((mac >> 8) & 0xFF),
+          (uint8_t)(mac & 0xFF));
+  
+  std::string key(mac_str);
+  std::string name = this->make_device_name(device_cfg.has_value() ? device_cfg->name : "", key);
 
   if (!this->parse_teltonika_payload(key, device_cfg.has_value() ? &(*device_cfg) : nullptr, device, payload)) {
     ESP_LOGW(TAG, "Failed to parse payload for Teltonika device %s", key.c_str());
@@ -135,19 +156,13 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
   return true;
 }
 
-optional<TeltonikaDeviceConfig> TeltonikaBLEComponent::find_device_config(
-    const esp32_ble_tracker::ESPBTDeviceAddress &mac) const {
-  uint64_t mac_int = mac.address;
+optional<TeltonikaDeviceConfig> TeltonikaBLEComponent::find_device_config(uint64_t mac) const {
   for (const auto &cfg : this->configured_devices_) {
-    if (cfg.mac_address == mac_int) {
+    if (cfg.mac_address == mac) {
       return cfg;
     }
   }
   return {};
-}
-
-std::string TeltonikaBLEComponent::make_device_key(const esp32_ble_tracker::ESPBTDeviceAddress &mac) const {
-  return mac.to_string();
 }
 
 std::string TeltonikaBLEComponent::make_device_name(const std::string &configured_name, const std::string &mac_str) const {
@@ -295,21 +310,25 @@ void TeltonikaBLEComponent::apply_timeout_logic(uint32_t now_ms) {
       continue;
 
     uint32_t last_seen = timeout_it->second;
-    auto cfg = this->configured_devices_;
     uint32_t timeout_ms = this->global_timeout_ms_;
 
-    auto cached_cfg = this->cache_.find(key);
-    optional<uint32_t> device_timeout = {};
+    // Check for device-specific timeout
     for (const auto &device_cfg : this->configured_devices_) {
-      if (key == device_cfg.mac_address.to_string()) {
-        if (device_cfg.timeout_ms.has_value()) {
-          device_timeout = device_cfg.timeout_ms;
+      char mac_str[18];
+      sprintf(mac_str, "%02X:%02X:%02X:%02X:%02X:%02X",
+              (uint8_t)((device_cfg.mac_address >> 40) & 0xFF),
+              (uint8_t)((device_cfg.mac_address >> 32) & 0xFF),
+              (uint8_t)((device_cfg.mac_address >> 24) & 0xFF),
+              (uint8_t)((device_cfg.mac_address >> 16) & 0xFF),
+              (uint8_t)((device_cfg.mac_address >> 8) & 0xFF),
+              (uint8_t)(device_cfg.mac_address & 0xFF));
+      
+      if (key == std::string(mac_str)) {
+        if (device_cfg.timeout_ms > 0) {
+          timeout_ms = device_cfg.timeout_ms;
         }
         break;
       }
-    }
-    if (device_timeout.has_value()) {
-      timeout_ms = *device_timeout;
     }
 
     if (now_ms - last_seen > timeout_ms) {

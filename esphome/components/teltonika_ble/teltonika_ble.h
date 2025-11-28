@@ -86,8 +86,7 @@ class TeltonikaBLEComponent : public Component, public esp32_ble_tracker::ESPBTD
                                const esp32_ble_tracker::ESPBTDevice &device,
                                const std::vector<uint8_t> &payload);
 
-  optional<TeltonikaDeviceConfig> find_device_config(const esp32_ble_tracker::ESPBTDeviceAddress &mac) const;
-  std::string make_device_key(const esp32_ble_tracker::ESPBTDeviceAddress &mac) const;
+  optional<TeltonikaDeviceConfig> find_device_config(uint64_t mac) const;
   std::string make_device_name(const std::string &configured_name, const std::string &mac_str) const;
 
   bool discover_{false};
