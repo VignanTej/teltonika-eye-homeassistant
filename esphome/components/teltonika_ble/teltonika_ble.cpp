@@ -57,7 +57,7 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
       // 32-bit UUID - company ID in lower 16 bits
       company_id = uuid.uuid.uuid32 & 0xFFFF;
     } else {
-      ESP_LOG V(TAG, "Unexpected UUID length: %d", uuid.len);
+      ESP_LOGV(TAG, "Unexpected UUID length: %d", uuid.len);
       continue;
     }
     
