@@ -1,0 +1,68 @@
+esphome:
+  name: teltonika_gateway
+  friendly_name: Teltonika EYE Gateway
+  comment: ESP32 BLE bridge for Teltonika EYE sensors
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Teltonika Fallback"
+    password: "changeme123"
+
+captive_portal:
+
+logger:
+  level: INFO
+  logs:
+    teltonika_ble: DEBUG
+
+api:
+
+ota:
+
+web_server:
+  port: 80
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 320ms
+    window: 30ms
+    active: false
+
+external_components:
+  - source: github://<your-github-user>/teltonika-eye-homeassistant/esphome/components
+    components:
+      - teltonika_ble
+    refresh: 1d
+
+teltonika_ble:
+  discover: true
+  scan_interval: 60s
+  timeout: 300s
+  rssi: true
+  battery_level: true
+
+  devices:
+    - mac_address: "AA:BB:CC:DD:EE:FF"
+      name: "office_eye"
+      timeout: 600s
+      rssi: true
+      battery_level: true
+
+    - mac_address: "11:22:33:44:55:66"
+      name: "warehouse_eye"
+
+    - mac_address: "22:33:44:55:66:77"
+      name: "garage_eye"
+      rssi: false
+      battery_level: false
