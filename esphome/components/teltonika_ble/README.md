@@ -55,14 +55,14 @@ ESPHome will load the component from the local components folder at compile time
 
 ---
 
-## 2. Example ESPHome Node Configuration
+## 2. Example ESPHome Configuration
 
-Below is a starter YAML (`teltonika_gateway.yaml`) that demonstrates the expected structure. You can adapt the values for your environment.
+Below is the complete configuration using the new sensor platform approach:
 
 ```yaml
 esphome:
-  name: teltonika_gateway
-  comment: ESP32 gateway for Teltonika EYE BLE sensors
+  name: teltonika-gateway
+  friendly_name: Teltonika EYE Gateway
 
 esp32:
   board: esp32dev
@@ -72,24 +72,18 @@ esp32:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  ap:
-    ssid: "Teltonika Fallback Hotspot"
-    password: "changeme123"
-
-captive_portal:
 
 logger:
-  level: INFO
+  level: DEBUG
+  logs:
+    teltonika_ble: DEBUG
 
 api:
 ota:
-
 web_server:
-  port: 80
 
 time:
   - platform: sntp
-    id: sntp_time
 
 esp32_ble_tracker:
   scan_parameters:
@@ -98,42 +92,81 @@ esp32_ble_tracker:
     active: false
 
 external_components:
-  - source: github://VignanTej/teltonika-eye-homeassistant@main
+  - source: github://VignanTej/teltonika-eye-homeassistant
     components: [teltonika_ble]
-    refresh: 1d
+    refresh: 0s
 
+# Main component configuration
 teltonika_ble:
+  id: teltonika_ble_component
   discover: true
-  scan_interval: 60s
   timeout: 300s
-  rssi: true
-  battery_level: true
 
-  devices:
-    - mac_address: "AA:BB:CC:DD:EE:FF"
-      name: "office_eye"
-      timeout: 600s
-      rssi: true
-      battery_level: true
-    - mac_address: "11:22:33:44:55:66"
-      name: "warehouse_eye"
+# Define sensors for each Teltonika device
+sensor:
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: "7C:D9:F4:13:BD:BF"
+    temperature:
+      name: "Teltonika EYE 1 Temperature"
+    humidity:
+      name: "Teltonika EYE 1 Humidity"
+    movement_count:
+      name: "Teltonika EYE 1 Movement Count"
+    pitch:
+      name: "Teltonika EYE 1 Pitch"
+    roll:
+      name: "Teltonika EYE 1 Roll"
+    battery_voltage:
+      name: "Teltonika EYE 1 Battery Voltage"
+    battery_level:
+      name: "Teltonika EYE 1 Battery Level"
+    rssi:
+      name: "Teltonika EYE 1 RSSI"
+
+binary_sensor:
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: "7C:D9:F4:13:BD:BF"
+    movement:
+      name: "Teltonika EYE 1 Movement"
+    magnetic:
+      name: "Teltonika EYE 1 Magnetic Field"
+    low_battery:
+      name: "Teltonika EYE 1 Low Battery"
 ```
 
-### Device-Level Options
+### Configuration Options
 
-| Option            | Type    | Description                                                                           |
-|-------------------|---------|---------------------------------------------------------------------------------------|
-| `discover`        | bool    | Auto-create sensors for any Teltonika device in range.                               |
-| `devices`         | list    | Explicit list of Teltonika sensors to monitor.                                       |
-| `scan_interval`   | time    | BLE rescanning interval. Default `60s`.                                              |
-| `timeout`         | time    | Global timeout before marking the device unavailable.                                |
-| `rssi`            | bool    | Create RSSI sensors for all devices (overridable per device).                        |
-| `battery_level`   | bool    | Create estimated battery-level sensors (overridable per device).                     |
-| `mac_address`     | string  | Device MAC (required per device).                                                    |
-| `name`            | string  | Friendly name used as the sensor prefix; optional (defaults to `Teltonika_<MAC>`).  |
-| Per-device `timeout`, `rssi`, `battery_level` | overrides | Override the global defaults on a per-device basis. |
+**teltonika_ble platform:**
+| Option     | Type | Description                                              |
+|------------|------|----------------------------------------------------------|
+| `id`       | ID   | Component ID to reference in sensor/binary_sensor        |
+| `discover` | bool | Auto-detect all Teltonika devices (default: true)        |
+| `timeout`  | time | Timeout before marking device unavailable (default: 300s)|
 
-**Entity Naming:** Each device yields sensors/binary sensors using `<name>_<measurement>` (e.g., `office_eye_temperature`, `office_eye_movement`, `warehouse_eye_battery_voltage`, etc.).
+**sensor platform (platform: teltonika_ble):**
+| Option               | Type       | Description                                    |
+|----------------------|------------|------------------------------------------------|
+| `teltonika_ble_id`   | ID         | Reference to teltonika_ble component           |
+| `mac_address`        | MAC        | Teltonika device MAC address                   |
+| `temperature`        | sensor     | Temperature sensor config (optional)           |
+| `humidity`           | sensor     | Humidity sensor config (optional)              |
+| `movement_count`     | sensor     | Movement counter sensor config (optional)      |
+| `pitch`              | sensor     | Pitch angle sensor config (optional)           |
+| `roll`               | sensor     | Roll angle sensor config (optional)            |
+| `battery_voltage`    | sensor     | Battery voltage sensor config (optional)       |
+| `battery_level`      | sensor     | Battery level % sensor config (optional)       |
+| `rssi`               | sensor     | RSSI signal strength sensor config (optional)  |
+
+**binary_sensor platform (platform: teltonika_ble):**
+| Option               | Type          | Description                                |
+|----------------------|---------------|--------------------------------------------|
+| `teltonika_ble_id`   | ID            | Reference to teltonika_ble component       |
+| `mac_address`        | MAC           | Teltonika device MAC address               |
+| `movement`           | binary_sensor | Movement detection (optional)              |
+| `magnetic`           | binary_sensor | Magnetic field detection (optional)        |
+| `low_battery`        | binary_sensor | Low battery alert (optional)               |
 
 ---
 

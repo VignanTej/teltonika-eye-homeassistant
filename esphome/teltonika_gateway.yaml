@@ -1,5 +1,5 @@
 esphome:
-  name: teltonika_gateway
+  name: teltonika-gateway
   friendly_name: Teltonika EYE Gateway
   comment: ESP32 BLE bridge for Teltonika EYE sensors
 
@@ -49,185 +49,73 @@ external_components:
     refresh: 0s
 
 teltonika_ble:
+  id: teltonika_ble_component
   discover: true
-  scan_interval: 60s
   timeout: 300s
-  rssi: true
-  battery_level: true
 
-  devices:
-    - mac_address: "7C:D9:F4:13:BD:BF"
-      name: "7C:D9:F4:13:BD:BF"
-      timeout: 600s
-      rssi: true
-      battery_level: true
-
-    - mac_address: "7C:D9:F4:14:21:5D"
-      name: "7C:D9:F4:14:21:5D"
-      timeout: 600s
-      rssi: true
-
-# Sensor definitions for Teltonika EYE devices
-# The teltonika_ble component will update these template sensors with parsed values
-
+# Sensor definitions using the teltonika_ble platform
 sensor:
   # Device 1: 7C:D9:F4:13:BD:BF
-  - platform: template
-    name: "Teltonika EYE 1 Temperature"
-    id: eye1_temperature
-    unit_of_measurement: "°C"
-    accuracy_decimals: 2
-    device_class: temperature
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 1 Humidity"
-    id: eye1_humidity
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: humidity
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 1 Movement Count"
-    id: eye1_movement_count
-    accuracy_decimals: 0
-    state_class: total_increasing
-    icon: "mdi:counter"
-
-  - platform: template
-    name: "Teltonika EYE 1 Pitch"
-    id: eye1_pitch
-    unit_of_measurement: "°"
-    accuracy_decimals: 0
-    state_class: measurement
-    icon: "mdi:angle-acute"
-
-  - platform: template
-    name: "Teltonika EYE 1 Roll"
-    id: eye1_roll
-    unit_of_measurement: "°"
-    accuracy_decimals: 0
-    state_class: measurement
-    icon: "mdi:angle-acute"
-
-  - platform: template
-    name: "Teltonika EYE 1 Battery Voltage"
-    id: eye1_battery_voltage
-    unit_of_measurement: "V"
-    accuracy_decimals: 3
-    device_class: voltage
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 1 Battery Level"
-    id: eye1_battery_level
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: battery
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 1 RSSI"
-    id: eye1_rssi
-    unit_of_measurement: "dBm"
-    accuracy_decimals: 0
-    device_class: signal_strength
-    state_class: measurement
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: "7C:D9:F4:13:BD:BF"
+    temperature:
+      name: "Teltonika EYE 1 Temperature"
+    humidity:
+      name: "Teltonika EYE 1 Humidity"
+    movement_count:
+      name: "Teltonika EYE 1 Movement Count"
+    pitch:
+      name: "Teltonika EYE 1 Pitch"
+    roll:
+      name: "Teltonika EYE 1 Roll"
+    battery_voltage:
+      name: "Teltonika EYE 1 Battery Voltage"
+    battery_level:
+      name: "Teltonika EYE 1 Battery Level"
+    rssi:
+      name: "Teltonika EYE 1 RSSI"
 
   # Device 2: 7C:D9:F4:14:21:5D
-  - platform: template
-    name: "Teltonika EYE 2 Temperature"
-    id: eye2_temperature
-    unit_of_measurement: "°C"
-    accuracy_decimals: 2
-    device_class: temperature
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 2 Humidity"
-    id: eye2_humidity
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: humidity
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 2 Movement Count"
-    id: eye2_movement_count
-    accuracy_decimals: 0
-    state_class: total_increasing
-    icon: "mdi:counter"
-
-  - platform: template
-    name: "Teltonika EYE 2 Pitch"
-    id: eye2_pitch
-    unit_of_measurement: "°"
-    accuracy_decimals: 0
-    state_class: measurement
-    icon: "mdi:angle-acute"
-
-  - platform: template
-    name: "Teltonika EYE 2 Roll"
-    id: eye2_roll
-    unit_of_measurement: "°"
-    accuracy_decimals: 0
-    state_class: measurement
-    icon: "mdi:angle-acute"
-
-  - platform: template
-    name: "Teltonika EYE 2 Battery Voltage"
-    id: eye2_battery_voltage
-    unit_of_measurement: "V"
-    accuracy_decimals: 3
-    device_class: voltage
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 2 Battery Level"
-    id: eye2_battery_level
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-    device_class: battery
-    state_class: measurement
-
-  - platform: template
-    name: "Teltonika EYE 2 RSSI"
-    id: eye2_rssi
-    unit_of_measurement: "dBm"
-    accuracy_decimals: 0
-    device_class: signal_strength
-    state_class: measurement
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: "7C:D9:F4:14:21:5D"
+    temperature:
+      name: "Teltonika EYE 2 Temperature"
+    humidity:
+      name: "Teltonika EYE 2 Humidity"
+    movement_count:
+      name: "Teltonika EYE 2 Movement Count"
+    pitch:
+      name: "Teltonika EYE 2 Pitch"
+    roll:
+      name: "Teltonika EYE 2 Roll"
+    battery_voltage:
+      name: "Teltonika EYE 2 Battery Voltage"
+    battery_level:
+      name: "Teltonika EYE 2 Battery Level"
+    rssi:
+      name: "Teltonika EYE 2 RSSI"
 
 binary_sensor:
   # Device 1: 7C:D9:F4:13:BD:BF
-  - platform: template
-    name: "Teltonika EYE 1 Movement"
-    id: eye1_movement
-    device_class: motion
-
-  - platform: template
-    name: "Teltonika EYE 1 Magnetic Field"
-    id: eye1_magnetic
-    device_class: opening
-
-  - platform: template
-    name: "Teltonika EYE 1 Low Battery"
-    id: eye1_low_battery
-    device_class: battery
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: "7C:D9:F4:13:BD:BF"
+    movement:
+      name: "Teltonika EYE 1 Movement"
+    magnetic:
+      name: "Teltonika EYE 1 Magnetic Field"
+    low_battery:
+      name: "Teltonika EYE 1 Low Battery"
 
   # Device 2: 7C:D9:F4:14:21:5D
-  - platform: template
-    name: "Teltonika EYE 2 Movement"
-    id: eye2_movement
-    device_class: motion
-
-  - platform: template
-    name: "Teltonika EYE 2 Magnetic Field"
-    id: eye2_magnetic
-    device_class: opening
-
-  - platform: template
-    name: "Teltonika EYE 2 Low Battery"
-    id: eye2_low_battery
-    device_class: battery
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: "7C:D9:F4:14:21:5D"
+    movement:
+      name: "Teltonika EYE 2 Movement"
+    magnetic:
+      name: "Teltonika EYE 2 Magnetic Field"
+    low_battery:
+      name: "Teltonika EYE 2 Low Battery"

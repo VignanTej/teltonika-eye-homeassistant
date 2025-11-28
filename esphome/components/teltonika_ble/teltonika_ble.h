@@ -17,27 +17,20 @@ namespace teltonika_ble {
 static const uint16_t TELTONIKA_COMPANY_ID = 0x089A;
 static const uint8_t TELTONIKA_PROTOCOL_VERSION = 0x01;
 
-struct TeltonikaDeviceConfig {
-  uint64_t mac_address;
-  std::string name;
-  uint32_t timeout_ms{0};
-  bool enable_rssi{true};
-  bool enable_battery_level{true};
-};
-
-struct TeltonikaSensorSet {
-  sensor::Sensor *temperature{nullptr};
-  sensor::Sensor *humidity{nullptr};
-  sensor::Sensor *movement_count{nullptr};
-  sensor::Sensor *pitch{nullptr};
-  sensor::Sensor *roll{nullptr};
-  sensor::Sensor *battery_voltage{nullptr};
-  sensor::Sensor *battery_level{nullptr};
-  sensor::Sensor *rssi{nullptr};
-
-  binary_sensor::BinarySensor *movement_state{nullptr};
-  binary_sensor::BinarySensor *magnetic_detected{nullptr};
-  binary_sensor::BinarySensor *low_battery{nullptr};
+// Sensor registration maps - keyed by MAC address
+struct RegisteredSensors {
+  std::map<uint64_t, sensor::Sensor *> temperature;
+  std::map<uint64_t, sensor::Sensor *> humidity;
+  std::map<uint64_t, sensor::Sensor *> movement_count;
+  std::map<uint64_t, sensor::Sensor *> pitch;
+  std::map<uint64_t, sensor::Sensor *> roll;
+  std::map<uint64_t, sensor::Sensor *> battery_voltage;
+  std::map<uint64_t, sensor::Sensor *> battery_level;
+  std::map<uint64_t, sensor::Sensor *> rssi;
+  
+  std::map<uint64_t, binary_sensor::BinarySensor *> movement_state;
+  std::map<uint64_t, binary_sensor::BinarySensor *> magnetic_detected;
+  std::map<uint64_t, binary_sensor::BinarySensor *> low_battery;
 };
 
 struct TeltonikaCachedValues {
@@ -68,40 +61,36 @@ class TeltonikaBLEComponent : public Component, public esp32_ble_tracker::ESPBTD
   bool parse_device(const esp32_ble_tracker::ESPBTDevice &device) override;
 
   void set_discover(bool discover) { this->discover_ = discover; }
-  void set_global_scan_interval(uint32_t seconds) { this->scan_interval_ms_ = seconds * 1000UL; }
   void set_global_timeout(uint32_t seconds) { this->global_timeout_ms_ = seconds * 1000UL; }
-  void set_global_rssi_enabled(bool enabled) { this->global_rssi_enabled_ = enabled; }
-  void set_global_battery_level_enabled(bool enabled) { this->global_battery_level_enabled_ = enabled; }
 
-  void add_device(uint64_t mac, const std::string &name, uint32_t timeout_ms, bool enable_rssi, bool enable_battery_level);
+  // Sensor registration methods
+  void register_temperature_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.temperature[mac] = sens; }
+  void register_humidity_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.humidity[mac] = sens; }
+  void register_movement_count_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.movement_count[mac] = sens; }
+  void register_pitch_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.pitch[mac] = sens; }
+  void register_roll_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.roll[mac] = sens; }
+  void register_battery_voltage_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.battery_voltage[mac] = sens; }
+  void register_battery_level_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.battery_level[mac] = sens; }
+  void register_rssi_sensor(uint64_t mac, sensor::Sensor *sens) { registered_sensors_.rssi[mac] = sens; }
+  
+  void register_movement_sensor(uint64_t mac, binary_sensor::BinarySensor *sens) { registered_sensors_.movement_state[mac] = sens; }
+  void register_magnetic_sensor(uint64_t mac, binary_sensor::BinarySensor *sens) { registered_sensors_.magnetic_detected[mac] = sens; }
+  void register_low_battery_sensor(uint64_t mac, binary_sensor::BinarySensor *sens) { registered_sensors_.low_battery[mac] = sens; }
 
  protected:
-  TeltonikaSensorSet &get_or_create_sensor_set(const std::string &key, const std::string &name, const TeltonikaDeviceConfig *cfg);
-  TeltonikaSensorSet &create_sensor_entities(const std::string &key, const std::string &name, const TeltonikaDeviceConfig *cfg);
-
-  void publish_values(const std::string &key, const TeltonikaSensorSet &sensors, const TeltonikaCachedValues &values);
+  void publish_values(uint64_t mac, const TeltonikaCachedValues &values);
   void apply_timeout_logic(uint32_t now_ms);
 
-  bool parse_teltonika_payload(const std::string &key, const TeltonikaDeviceConfig *cfg,
-                               const esp32_ble_tracker::ESPBTDevice &device,
+  bool parse_teltonika_payload(uint64_t mac, const esp32_ble_tracker::ESPBTDevice &device,
                                const std::vector<uint8_t> &payload);
 
-  optional<TeltonikaDeviceConfig> find_device_config(uint64_t mac) const;
-  std::string make_device_name(const std::string &configured_name, const std::string &mac_str) const;
-
   bool discover_{false};
-  uint32_t scan_interval_ms_{60000};  // default 60s
   uint32_t global_timeout_ms_{300000};
-  bool global_rssi_enabled_{true};
-  bool global_battery_level_enabled_{true};
-
   uint32_t last_scan_ms_{0};
 
-  std::vector<TeltonikaDeviceConfig> configured_devices_;
-
-  std::map<std::string, TeltonikaSensorSet> sensors_;
-  std::map<std::string, TeltonikaCachedValues> cache_;
-  std::map<std::string, uint32_t> device_timeouts_;
+  RegisteredSensors registered_sensors_;
+  std::map<uint64_t, TeltonikaCachedValues> cache_;
+  std::map<uint64_t, uint32_t> device_timeouts_;
 };
 
 }  // namespace teltonika_ble
