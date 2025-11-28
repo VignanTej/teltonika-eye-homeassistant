@@ -41,14 +41,24 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
   std::vector<uint8_t> payload;
   
   for (const auto &manu : manu_datas) {
-    // Extract company ID from UUID
+    // In ESPHome, the UUID for manufacturer data contains the company ID
+    // esp_bt_uuid_t has len and uuid fields
     auto uuid = manu.uuid.get_uuid();
     uint16_t company_id = 0;
     
-    if (uuid.uuid16 != 0) {
-      company_id = uuid.uuid16;
+    // Extract 16-bit company ID from UUID based on length
+    if (uuid.len == ESP_UUID_LEN_16) {
+      // 16-bit UUID - company ID is in the uuid union
+      company_id = uuid.uuid.uuid16;
+    } else if (uuid.len == ESP_UUID_LEN_128) {
+      // 128-bit UUID - company ID is in first 2 bytes (little endian)
+      company_id = uuid.uuid.uuid128[0] | (uuid.uuid.uuid128[1] << 8);
+    } else if (uuid.len == ESP_UUID_LEN_32) {
+      // 32-bit UUID - company ID in lower 16 bits
+      company_id = uuid.uuid.uuid32 & 0xFFFF;
     } else {
-      company_id = uuid.uuid128[0] | (uuid.uuid128[1] << 8);
+      ESP_LOG V(TAG, "Unexpected UUID length: %d", uuid.len);
+      continue;
     }
     
     ESP_LOGV(TAG, "Manufacturer data company ID: 0x%04X, size: %d", company_id, manu.data.size());
