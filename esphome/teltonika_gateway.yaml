@@ -231,4 +231,3 @@ binary_sensor:
     name: "Teltonika EYE 2 Low Battery"
     id: eye2_low_battery
     device_class: battery
-      battery_level: true
