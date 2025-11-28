@@ -111,21 +111,27 @@ TeltonikaSensorSet &TeltonikaBLEComponent::create_sensor_entities(const std::str
 }
 
 bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &device) {
-  const auto &manu_datas = device.get_manufacturer_datas();
+  // Get manufacturer data as ServiceData vector
+  auto manu_datas = device.get_manufacturer_datas();
   
-  // Search for Teltonika company ID in manufacturer data
-  bool found = false;
+  // ESPHome stores manufacturer data as ServiceData
+  // We need to iterate and find Teltonika company ID
+  bool found_teltonika = false;
   std::vector<uint8_t> payload;
   
   for (const auto &manu : manu_datas) {
-    if (manu.uuid.get_16bit() == TELTONIKA_COMPANY_ID) {
+    // ServiceData has uuid (ESPBTUUID) and data (vector<uint8_t>)
+    // For manufacturer specific data, the company ID is embedded differently
+    // Let's check the data payload directly - Teltonika data starts with protocol version 0x01
+    if (manu.data.size() >= 2 && manu.data[0] == TELTONIKA_PROTOCOL_VERSION) {
+      // This looks like Teltonika data
       payload = manu.data;
-      found = true;
+      found_teltonika = true;
       break;
     }
   }
   
-  if (!found) {
+  if (!found_teltonika) {
     return false;
   }
 
