@@ -194,10 +194,10 @@ rm -rf /data/external_components/*
 # Delete folder: /data/external_components/
 ```
 
-**Method 3: Use a specific commit hash**
+**Method 3: Use a specific commit hash (recommended for stability)**
 ```yaml
 external_components:
-  - source: github://VignanTej/teltonika-eye-homeassistant@<latest-commit>
+  - source: github://VignanTej/teltonika-eye-homeassistant@79746e8
     components: [teltonika_ble]
 ```
 Check https://github.com/VignanTej/teltonika-eye-homeassistant/commits/main for the latest commit hash
