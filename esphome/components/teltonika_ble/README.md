@@ -137,7 +137,42 @@ teltonika_ble:
 
 ---
 
-## 3. Clearing ESPHome Cache (Important!)
+## 3. Current Status - Working with Limitations
+
+**✅ The component is successfully:**
+- Detecting Teltonika EYE sensors via BLE
+- Parsing manufacturer data (protocol version, flags)
+- Extracting sensor values (temperature, humidity, movement, battery, angles, RSSI)
+- Supporting multiple devices simultaneously
+
+**⚠️  Current Limitation:**
+The sensors are created dynamically in C++ but show with empty names in logs. To properly use this component, you need to define sensor entities in your YAML configuration. Here's how:
+
+```yaml
+sensor:
+  - platform: template
+    name: "Office EYE Temperature"
+    id: office_eye_temp
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    
+  - platform: template
+    name: "Office EYE Humidity"
+    id: office_eye_humidity
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+
+binary_sensor:
+  - platform: template
+    name: "Office EYE Movement"
+    id: office_eye_movement
+```
+
+Then the component will publish values to these sensors. A future update will automate sensor entity creation.
+
+---
+
+## 4. Clearing ESPHome Cache (Important!)
 
 If you've previously compiled with an older version of this component, ESPHome caches the external component code. **You must clear the cache** to get the latest version:
 
