@@ -242,6 +242,137 @@ sensor:
     rssi:
       name: "Teltonika EYE 5 RSSI"
 
+  # ------------- DISTANCE SENSORS FOR TELTONIKA DEVICES -------------------
+  # Template sensors to calculate distance from RSSI
+  # Note: The RSSI sensors are defined above with the teltonika_ble platform
+  # These templates convert RSSI to estimated distance
+  
+  - platform: template
+    name: "Teltonika EYE 1 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      // Get RSSI from the teltonika_ble RSSI sensor above
+      // You'll need to reference the actual sensor entity
+      // For now, returning a placeholder - configure after sensors are created
+      return {};
+    update_interval: 5s
+
+  - platform: template
+    name: "Teltonika EYE 2 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      return {};
+    update_interval: 5s
+
+  - platform: template
+    name: "Teltonika EYE 3 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      return {};
+    update_interval: 5s
+
+  - platform: template
+    name: "Teltonika EYE 4 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      return {};
+    update_interval: 5s
+
+  - platform: template
+    name: "Teltonika EYE 5 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      return {};
+    update_interval: 5s
+
+  # ------------- IBEACON RSSI SENSORS ------------------------------------
+  # Add your iBeacon MAC addresses here
+  - platform: ble_rssi
+    mac_address: "AA:BB:CC:DD:EE:F1"
+    name: "iBeacon 1 RSSI"
+    id: ibeacon1_rssi
+
+  - platform: ble_rssi
+    mac_address: "AA:BB:CC:DD:EE:F2"
+    name: "iBeacon 2 RSSI"
+    id: ibeacon2_rssi
+
+  # ------------- IBEACON DISTANCE SENSORS --------------------------------
+  - platform: template
+    name: "iBeacon 1 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      float rssi = id(ibeacon1_rssi).state;
+      if (isnan(rssi) || rssi == 0) return {};
+      // iBeacon typical TxPower = -59 dBm
+      float distance = pow(10.0, ((-59.0) - rssi) / (10.0 * 2.0));
+      return distance;
+    update_interval: 2s
+
+  - platform: template
+    name: "iBeacon 2 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      float rssi = id(ibeacon2_rssi).state;
+      if (isnan(rssi) || rssi == 0) return {};
+      float distance = pow(10.0, ((-59.0) - rssi) / (10.0 * 2.0));
+      return distance;
+    update_interval: 2s
+
+  # ------------- EDDYSTONE RSSI SENSORS ----------------------------------
+  # Eddystone beacons (replace with your beacon MAC addresses)
+  - platform: ble_rssi
+    mac_address: "BB:CC:DD:EE:FF:01"
+    name: "Eddystone 1 RSSI"
+    id: eddystone1_rssi
+
+  - platform: ble_rssi
+    mac_address: "BB:CC:DD:EE:FF:02"
+    name: "Eddystone 2 RSSI"
+    id: eddystone2_rssi
+
+  # ------------- EDDYSTONE DISTANCE SENSORS ------------------------------
+  - platform: template
+    name: "Eddystone 1 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      float rssi = id(eddystone1_rssi).state;
+      if (isnan(rssi) || rssi == 0) return {};
+      // Eddystone typical TxPower = -20 to -4 dBm (adjust based on your beacons)
+      float txPower = -20.0;  // Calibrate this value for your specific beacons
+      float distance = pow(10.0, ((txPower) - rssi) / (10.0 * 2.0));
+      return distance;
+    update_interval: 2s
+
+  - platform: template
+    name: "Eddystone 2 Distance"
+    unit_of_measurement: "m"
+    accuracy_decimals: 1
+    icon: "mdi:signal-distance-variant"
+    lambda: |-
+      float rssi = id(eddystone2_rssi).state;
+      if (isnan(rssi) || rssi == 0) return {};
+      float txPower = -20.0;
+      float distance = pow(10.0, ((txPower) - rssi) / (10.0 * 2.0));
+      return distance;
+    update_interval: 2s
+
 # ------------- BINARY SENSORS (UP TO 5 EYE DEVICES) ---------------------
 
 binary_sensor:
