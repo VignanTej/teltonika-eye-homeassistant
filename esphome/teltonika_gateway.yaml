@@ -56,6 +56,21 @@ teltonika_ble:
   discover: true
   timeout: 300s
 
+# ---------------- DISCOVERED DEVICES TEXT SENSOR -------------------------
+
+text_sensor:
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    discovered_devices:
+      name: "Teltonika Devices Discovered"
+      icon: "mdi:bluetooth-audio"
+
+  - platform: wifi_info
+    ip_address:
+      name: "Gateway IP"
+    mac_address:
+      name: "Gateway MAC"
+
 # ---------------- CONFIG TEXT FIELDS (SHOW IN HA DEVICE UI) -------------
 
 text:
@@ -304,11 +319,3 @@ binary_sensor:
       - delayed_on: 50ms
       - delayed_off: 50ms
 
-# ------------- EXISTING TEXT SENSORS ------------------------------------
-
-text_sensor:
-  - platform: wifi_info
-    ip_address:
-      name: "Gateway IP"
-    mac_address:
-      name: "Gateway MAC"

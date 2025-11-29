@@ -3,12 +3,14 @@
 #include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "esphome/core/automation.h"
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -114,6 +116,8 @@ class TeltonikaBLEComponent : public Component, public esp32_ble_tracker::ESPBTD
     registered_sensors_.low_battery.push_back({mac_template, sens, 0, true});
   }
 
+  void set_discovered_devices_text_sensor(text_sensor::TextSensor *sensor) { discovered_devices_sensor_ = sensor; }
+
  protected:
   void publish_values(uint64_t mac, const TeltonikaCachedValues &values);
   void apply_timeout_logic(uint32_t now_ms);
@@ -126,10 +130,13 @@ class TeltonikaBLEComponent : public Component, public esp32_ble_tracker::ESPBTD
   bool discover_{false};
   uint32_t global_timeout_ms_{300000};
   uint32_t last_scan_ms_{0};
+  uint32_t last_discovered_update_ms_{0};
 
   RegisteredSensors registered_sensors_;
   std::map<uint64_t, TeltonikaCachedValues> cache_;
   std::map<uint64_t, uint32_t> device_timeouts_;
+  std::set<uint64_t> discovered_devices_;
+  text_sensor::TextSensor *discovered_devices_sensor_{nullptr};
 };
 
 }  // namespace teltonika_ble

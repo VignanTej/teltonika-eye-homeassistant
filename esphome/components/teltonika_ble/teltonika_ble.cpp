@@ -19,6 +19,34 @@ void TeltonikaBLEComponent::loop() {
   uint32_t now = millis();
   this->update_mac_addresses();
   this->apply_timeout_logic(now);
+  
+  // Update discovered devices text sensor every 5 seconds
+  if (this->discovered_devices_sensor_ != nullptr &&
+      (now - this->last_discovered_update_ms_ > 5000)) {
+    this->last_discovered_update_ms_ = now;
+    
+    std::string devices_list;
+    for (auto mac : this->discovered_devices_) {
+      if (!devices_list.empty()) {
+        devices_list += ", ";
+      }
+      char mac_str[18];
+      snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
+               (uint8_t)((mac >> 40) & 0xFF),
+               (uint8_t)((mac >> 32) & 0xFF),
+               (uint8_t)((mac >> 24) & 0xFF),
+               (uint8_t)((mac >> 16) & 0xFF),
+               (uint8_t)((mac >> 8) & 0xFF),
+               (uint8_t)(mac & 0xFF));
+      devices_list += mac_str;
+    }
+    
+    if (devices_list.empty()) {
+      devices_list = "No devices found";
+    }
+    
+    this->discovered_devices_sensor_->publish_state(devices_list);
+  }
 }
 
 void TeltonikaBLEComponent::dump_config() {
@@ -108,6 +136,9 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
   }
 
   uint64_t mac = device.address_uint64();
+  
+  // Track discovered device
+  this->discovered_devices_.insert(mac);
   
   // Check if we have any sensors registered for this device
   auto has_mac_registered = [mac](const auto &registrations) {

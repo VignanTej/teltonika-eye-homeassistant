@@ -134,6 +134,12 @@ binary_sensor:
       name: "Teltonika EYE 1 Magnetic Field"
     low_battery:
       name: "Teltonika EYE 1 Low Battery"
+
+text_sensor:
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    discovered_devices:
+      name: "Teltonika Devices Discovered"
 ```
 
 ### Dynamic MAC Address Configuration (Templatable)
@@ -210,6 +216,12 @@ This allows you to switch which Teltonika EYE sensor is being monitored simply b
 | `movement`           | binary_sensor | Movement detection (optional)              |
 | `magnetic`           | binary_sensor | Magnetic field detection (optional)        |
 | `low_battery`        | binary_sensor | Low battery alert (optional)               |
+
+**text_sensor platform (platform: teltonika_ble):**
+| Option               | Type          | Description                                                    |
+|----------------------|---------------|----------------------------------------------------------------|
+| `teltonika_ble_id`   | ID            | Reference to teltonika_ble component                           |
+| `discovered_devices` | text_sensor   | Lists all discovered Teltonika EYE MAC addresses (optional)   |
 
 ---
 
