@@ -1,7 +1,10 @@
 esphome:
-  name: teltonika-gateway
-  friendly_name: Teltonika EYE Gateway
+  name: tez-teltonika-gateway
+  name_add_mac_suffix: true
+  friendly_name: Tez Teltonika EYE Gateway
   comment: ESP32 BLE bridge for Teltonika EYE sensors
+  platformio_options:
+    lib_ldf_mode: deep+
 
 esp32:
   board: esp32dev
@@ -12,16 +15,16 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
-    ssid: "Teltonika Fallback"
-    password: "changeme123"
+    ssid: "Tez Teltonika Gateway Fallback"
+    password: "TezDevice#123"
 
 captive_portal:
 
 logger:
-  level: DEBUG
+  level: INFO
   logs:
-    teltonika_ble: DEBUG
-    esp32_ble_tracker: DEBUG
+    teltonika_ble: INFO
+    esp32_ble_tracker: INFO
 
 api:
 
@@ -53,12 +56,72 @@ teltonika_ble:
   discover: true
   timeout: 300s
 
-# Sensor definitions using the teltonika_ble platform
+# ---------------- CONFIG TEXT FIELDS (SHOW IN HA DEVICE UI) -------------
+
+text:
+  - platform: template
+    id: eye1_mac_text
+    name: "EYE 1 MAC"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "7C:D9:F4:13:BD:BF"
+    min_length: 0
+    max_length: 17
+    mode: text
+
+  - platform: template
+    id: eye2_mac_text
+    name: "EYE 2 MAC"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "7C:D9:F4:14:21:5D"
+    min_length: 0
+    max_length: 17
+    mode: text
+
+  - platform: template
+    id: eye3_mac_text
+    name: "EYE 3 MAC"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "00:00:00:00:00:00"
+    min_length: 0
+    max_length: 17
+    mode: text
+
+  - platform: template
+    id: eye4_mac_text
+    name: "EYE 4 MAC"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "00:00:00:00:00:00"
+    min_length: 0
+    max_length: 17
+    mode: text
+
+  - platform: template
+    id: eye5_mac_text
+    name: "EYE 5 MAC"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "00:00:00:00:00:00"
+    min_length: 0
+    max_length: 17
+    mode: text
+
+# ------------- SENSORS (UP TO 5 EYE DEVICES) ----------------------------
+
 sensor:
-  # Device 1: 7C:D9:F4:13:BD:BF
+  # Device 1
   - platform: teltonika_ble
     teltonika_ble_id: teltonika_ble_component
-    mac_address: "7C:D9:F4:13:BD:BF"
+    mac_address: !lambda |-
+      return id(eye1_mac_text).state.c_str();
     temperature:
       name: "Teltonika EYE 1 Temperature"
     humidity:
@@ -76,10 +139,11 @@ sensor:
     rssi:
       name: "Teltonika EYE 1 RSSI"
 
-  # Device 2: 7C:D9:F4:14:21:5D
+  # Device 2
   - platform: teltonika_ble
     teltonika_ble_id: teltonika_ble_component
-    mac_address: "7C:D9:F4:14:21:5D"
+    mac_address: !lambda |-
+      return id(eye2_mac_text).state.c_str();
     temperature:
       name: "Teltonika EYE 2 Temperature"
     humidity:
@@ -97,11 +161,80 @@ sensor:
     rssi:
       name: "Teltonika EYE 2 RSSI"
 
-binary_sensor:
-  # Device 1: 7C:D9:F4:13:BD:BF
+  # Device 3
   - platform: teltonika_ble
     teltonika_ble_id: teltonika_ble_component
-    mac_address: "7C:D9:F4:13:BD:BF"
+    mac_address: !lambda |-
+      return id(eye3_mac_text).state.c_str();
+    temperature:
+      name: "Teltonika EYE 3 Temperature"
+    humidity:
+      name: "Teltonika EYE 3 Humidity"
+    movement_count:
+      name: "Teltonika EYE 3 Movement Count"
+    pitch:
+      name: "Teltonika EYE 3 Pitch"
+    roll:
+      name: "Teltonika EYE 3 Roll"
+    battery_voltage:
+      name: "Teltonika EYE 3 Battery Voltage"
+    battery_level:
+      name: "Teltonika EYE 3 Battery Level"
+    rssi:
+      name: "Teltonika EYE 3 RSSI"
+
+  # Device 4
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye4_mac_text).state.c_str();
+    temperature:
+      name: "Teltonika EYE 4 Temperature"
+    humidity:
+      name: "Teltonika EYE 4 Humidity"
+    movement_count:
+      name: "Teltonika EYE 4 Movement Count"
+    pitch:
+      name: "Teltonika EYE 4 Pitch"
+    roll:
+      name: "Teltonika EYE 4 Roll"
+    battery_voltage:
+      name: "Teltonika EYE 4 Battery Voltage"
+    battery_level:
+      name: "Teltonika EYE 4 Battery Level"
+    rssi:
+      name: "Teltonika EYE 4 RSSI"
+
+  # Device 5
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye5_mac_text).state.c_str();
+    temperature:
+      name: "Teltonika EYE 5 Temperature"
+    humidity:
+      name: "Teltonika EYE 5 Humidity"
+    movement_count:
+      name: "Teltonika EYE 5 Movement Count"
+    pitch:
+      name: "Teltonika EYE 5 Pitch"
+    roll:
+      name: "Teltonika EYE 5 Roll"
+    battery_voltage:
+      name: "Teltonika EYE 5 Battery Voltage"
+    battery_level:
+      name: "Teltonika EYE 5 Battery Level"
+    rssi:
+      name: "Teltonika EYE 5 RSSI"
+
+# ------------- BINARY SENSORS (UP TO 5 EYE DEVICES) ---------------------
+
+binary_sensor:
+  # Device 1
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye1_mac_text).state.c_str();
     movement:
       name: "Teltonika EYE 1 Movement"
     magnetic:
@@ -109,13 +242,73 @@ binary_sensor:
     low_battery:
       name: "Teltonika EYE 1 Low Battery"
 
-  # Device 2: 7C:D9:F4:14:21:5D
+  # Device 2
   - platform: teltonika_ble
     teltonika_ble_id: teltonika_ble_component
-    mac_address: "7C:D9:F4:14:21:5D"
+    mac_address: !lambda |-
+      return id(eye2_mac_text).state.c_str();
     movement:
       name: "Teltonika EYE 2 Movement"
     magnetic:
       name: "Teltonika EYE 2 Magnetic Field"
     low_battery:
       name: "Teltonika EYE 2 Low Battery"
+
+  # Device 3
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye3_mac_text).state.c_str();
+    movement:
+      name: "Teltonika EYE 3 Movement"
+    magnetic:
+      name: "Teltonika EYE 3 Magnetic Field"
+    low_battery:
+      name: "Teltonika EYE 3 Low Battery"
+
+  # Device 4
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye4_mac_text).state.c_str();
+    movement:
+      name: "Teltonika EYE 4 Movement"
+    magnetic:
+      name: "Teltonika EYE 4 Magnetic Field"
+    low_battery:
+      name: "Teltonika EYE 4 Low Battery"
+
+  # Device 5
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye5_mac_text).state.c_str();
+    movement:
+      name: "Teltonika EYE 5 Movement"
+    magnetic:
+      name: "Teltonika EYE 5 Magnetic Field"
+    low_battery:
+      name: "Teltonika EYE 5 Low Battery"
+
+  # Door limit switch
+  - platform: gpio
+    name: "Gateway Door"
+    pin:
+      number: GPIO14
+      mode:
+        input: true
+        pullup: true
+      inverted: false
+    device_class: door
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+
+# ------------- EXISTING TEXT SENSORS ------------------------------------
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "Gateway IP"
+    mac_address:
+      name: "Gateway MAC"
