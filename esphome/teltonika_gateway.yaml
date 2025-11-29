@@ -35,6 +35,28 @@ ota:
 web_server:
   port: 80
 
+# MQTT Configuration (Note: Changing these values requires recompilation)
+# The values are stored in number/text entities that appear in HA UI and Web UI
+# After changing MQTT settings, you must recompile and upload new firmware
+# Topic prefix uses device name with MAC suffix for uniqueness
+mqtt:
+  broker: !lambda |-
+    return id(mqtt_broker_text).state.c_str();
+  port: !lambda |-
+    return (int)id(mqtt_port_number).state;
+  username: !lambda |-
+    return id(mqtt_username_text).state.c_str();
+  password: !lambda |-
+    return id(mqtt_password_text).state.c_str();
+  discovery: true
+  discovery_retain: true
+  topic_prefix: !lambda |-
+    return App.get_name().c_str();
+  on_connect:
+    - logger.log: "Connected to MQTT broker"
+  on_disconnect:
+    - logger.log: "Disconnected from MQTT broker"
+
 time:
   - platform: sntp
     id: sntp_time
@@ -71,9 +93,58 @@ text_sensor:
     mac_address:
       name: "Gateway MAC"
 
-# ---------------- CONFIG TEXT FIELDS (SHOW IN HA DEVICE UI) -------------
+# ---------------- CONFIG FIELDS (SHOW IN HA DEVICE UI) ------------------
+
+# MQTT Port Configuration
+number:
+  - platform: template
+    id: mqtt_port_number
+    name: "MQTT Port"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 1883
+    min_value: 1
+    max_value: 65535
+    step: 1
+    mode: box
 
 text:
+  # MQTT Configuration
+  - platform: template
+    id: mqtt_broker_text
+    name: "MQTT Broker"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "homeassistant.local"
+    min_length: 0
+    max_length: 100
+    mode: text
+
+  - platform: template
+    id: mqtt_username_text
+    name: "MQTT Username"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "mqtt_user"
+    min_length: 0
+    max_length: 50
+    mode: text
+
+  - platform: template
+    id: mqtt_password_text
+    name: "MQTT Password"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "mqtt_password"
+    min_length: 0
+    max_length: 50
+    mode: password
+
+  # Teltonika EYE MAC Addresses
   - platform: template
     id: eye1_mac_text
     name: "EYE 1 MAC"
@@ -241,137 +312,6 @@ sensor:
       name: "Teltonika EYE 5 Battery Level"
     rssi:
       name: "Teltonika EYE 5 RSSI"
-
-  # ------------- DISTANCE SENSORS FOR TELTONIKA DEVICES -------------------
-  # Template sensors to calculate distance from RSSI
-  # Note: The RSSI sensors are defined above with the teltonika_ble platform
-  # These templates convert RSSI to estimated distance
-  
-  - platform: template
-    name: "Teltonika EYE 1 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      // Get RSSI from the teltonika_ble RSSI sensor above
-      // You'll need to reference the actual sensor entity
-      // For now, returning a placeholder - configure after sensors are created
-      return {};
-    update_interval: 5s
-
-  - platform: template
-    name: "Teltonika EYE 2 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      return {};
-    update_interval: 5s
-
-  - platform: template
-    name: "Teltonika EYE 3 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      return {};
-    update_interval: 5s
-
-  - platform: template
-    name: "Teltonika EYE 4 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      return {};
-    update_interval: 5s
-
-  - platform: template
-    name: "Teltonika EYE 5 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      return {};
-    update_interval: 5s
-
-  # ------------- IBEACON RSSI SENSORS ------------------------------------
-  # Add your iBeacon MAC addresses here
-  - platform: ble_rssi
-    mac_address: "AA:BB:CC:DD:EE:F1"
-    name: "iBeacon 1 RSSI"
-    id: ibeacon1_rssi
-
-  - platform: ble_rssi
-    mac_address: "AA:BB:CC:DD:EE:F2"
-    name: "iBeacon 2 RSSI"
-    id: ibeacon2_rssi
-
-  # ------------- IBEACON DISTANCE SENSORS --------------------------------
-  - platform: template
-    name: "iBeacon 1 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      float rssi = id(ibeacon1_rssi).state;
-      if (isnan(rssi) || rssi == 0) return {};
-      // iBeacon typical TxPower = -59 dBm
-      float distance = pow(10.0, ((-59.0) - rssi) / (10.0 * 2.0));
-      return distance;
-    update_interval: 2s
-
-  - platform: template
-    name: "iBeacon 2 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      float rssi = id(ibeacon2_rssi).state;
-      if (isnan(rssi) || rssi == 0) return {};
-      float distance = pow(10.0, ((-59.0) - rssi) / (10.0 * 2.0));
-      return distance;
-    update_interval: 2s
-
-  # ------------- EDDYSTONE RSSI SENSORS ----------------------------------
-  # Eddystone beacons (replace with your beacon MAC addresses)
-  - platform: ble_rssi
-    mac_address: "BB:CC:DD:EE:FF:01"
-    name: "Eddystone 1 RSSI"
-    id: eddystone1_rssi
-
-  - platform: ble_rssi
-    mac_address: "BB:CC:DD:EE:FF:02"
-    name: "Eddystone 2 RSSI"
-    id: eddystone2_rssi
-
-  # ------------- EDDYSTONE DISTANCE SENSORS ------------------------------
-  - platform: template
-    name: "Eddystone 1 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      float rssi = id(eddystone1_rssi).state;
-      if (isnan(rssi) || rssi == 0) return {};
-      // Eddystone typical TxPower = -20 to -4 dBm (adjust based on your beacons)
-      float txPower = -20.0;  // Calibrate this value for your specific beacons
-      float distance = pow(10.0, ((txPower) - rssi) / (10.0 * 2.0));
-      return distance;
-    update_interval: 2s
-
-  - platform: template
-    name: "Eddystone 2 Distance"
-    unit_of_measurement: "m"
-    accuracy_decimals: 1
-    icon: "mdi:signal-distance-variant"
-    lambda: |-
-      float rssi = id(eddystone2_rssi).state;
-      if (isnan(rssi) || rssi == 0) return {};
-      float txPower = -20.0;
-      float distance = pow(10.0, ((txPower) - rssi) / (10.0 * 2.0));
-      return distance;
-    update_interval: 2s
 
 # ------------- BINARY SENSORS (UP TO 5 EYE DEVICES) ---------------------
 
