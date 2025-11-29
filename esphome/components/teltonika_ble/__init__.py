@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import esp32_ble_tracker
 from esphome.const import CONF_ID, CONF_TIMEOUT
 
-AUTO_LOAD = ["sensor", "binary_sensor"]
+AUTO_LOAD = ["sensor", "binary_sensor", "text"]
 
 CONF_DISCOVER = "discover"
 
