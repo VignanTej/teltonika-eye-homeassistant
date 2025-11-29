@@ -96,6 +96,9 @@ external_components:
     components: [teltonika_ble]
     refresh: 0s
 
+# Explicitly load text component (required for template text platform)
+text:
+
 # Main component configuration
 teltonika_ble:
   id: teltonika_ble_component
