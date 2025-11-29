@@ -56,9 +56,6 @@ teltonika_ble:
   discover: true
   timeout: 300s
 
-# Explicitly load text component (required for template text entities)
-text:
-
 # ---------------- CONFIG TEXT FIELDS (SHOW IN HA DEVICE UI) -------------
 
 text:
