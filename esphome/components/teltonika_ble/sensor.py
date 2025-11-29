@@ -34,7 +34,7 @@ CONF_RSSI = "rssi"
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_TELTONIKA_BLE_ID): cv.use_id(TeltonikaBLEComponent),
-        cv.Required(CONF_MAC_ADDRESS): cv.mac_address,
+        cv.Required(CONF_MAC_ADDRESS): cv.templatable(cv.mac_address),
         cv.Optional(CONF_TEMPERATURE): sensor.sensor_schema(
             unit_of_measurement=UNIT_CELSIUS,
             accuracy_decimals=2,
@@ -86,43 +86,46 @@ CONFIG_SCHEMA = cv.Schema(
 
 async def to_code(config):
     parent = await cg.get_variable(config[CONF_TELTONIKA_BLE_ID])
-    mac = config[CONF_MAC_ADDRESS]
     
-    # Convert MAC to uint64 for C++
-    mac_parts = mac.parts
-    mac_value = 0
-    for i, part in enumerate(mac_parts):
-        mac_value |= (part << (8 * (5 - i)))
-    mac_int = cg.RawExpression(f"0x{mac_value:012X}ULL")
+    # Handle templatable MAC address
+    mac_config = config[CONF_MAC_ADDRESS]
     
     if CONF_TEMPERATURE in config:
         sens = await sensor.new_sensor(config[CONF_TEMPERATURE])
-        cg.add(parent.register_temperature_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_temperature_sensor(template_, sens))
     
     if CONF_HUMIDITY in config:
         sens = await sensor.new_sensor(config[CONF_HUMIDITY])
-        cg.add(parent.register_humidity_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_humidity_sensor(template_, sens))
     
     if CONF_MOVEMENT_COUNT in config:
         sens = await sensor.new_sensor(config[CONF_MOVEMENT_COUNT])
-        cg.add(parent.register_movement_count_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_movement_count_sensor(template_, sens))
     
     if CONF_PITCH in config:
         sens = await sensor.new_sensor(config[CONF_PITCH])
-        cg.add(parent.register_pitch_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_pitch_sensor(template_, sens))
     
     if CONF_ROLL in config:
         sens = await sensor.new_sensor(config[CONF_ROLL])
-        cg.add(parent.register_roll_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_roll_sensor(template_, sens))
     
     if CONF_BATTERY_VOLTAGE in config:
         sens = await sensor.new_sensor(config[CONF_BATTERY_VOLTAGE])
-        cg.add(parent.register_battery_voltage_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_battery_voltage_sensor(template_, sens))
     
     if CONF_BATTERY_LEVEL in config:
         sens = await sensor.new_sensor(config[CONF_BATTERY_LEVEL])
-        cg.add(parent.register_battery_level_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_battery_level_sensor(template_, sens))
     
     if CONF_RSSI in config:
         sens = await sensor.new_sensor(config[CONF_RSSI])
-        cg.add(parent.register_rssi_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_rssi_sensor(template_, sens))

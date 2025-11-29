@@ -21,7 +21,7 @@ CONF_LOW_BATTERY = "low_battery"
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_TELTONIKA_BLE_ID): cv.use_id(TeltonikaBLEComponent),
-        cv.Required(CONF_MAC_ADDRESS): cv.mac_address,
+        cv.Required(CONF_MAC_ADDRESS): cv.templatable(cv.mac_address),
         cv.Optional(CONF_MOVEMENT): binary_sensor.binary_sensor_schema(
             device_class=DEVICE_CLASS_MOTION
         ),
@@ -37,23 +37,21 @@ CONFIG_SCHEMA = cv.Schema(
 
 async def to_code(config):
     parent = await cg.get_variable(config[CONF_TELTONIKA_BLE_ID])
-    mac = config[CONF_MAC_ADDRESS]
     
-    # Convert MAC to uint64 for C++
-    mac_parts = mac.parts
-    mac_value = 0
-    for i, part in enumerate(mac_parts):
-        mac_value |= (part << (8 * (5 - i)))
-    mac_int = cg.RawExpression(f"0x{mac_value:012X}ULL")
+    # Handle templatable MAC address
+    mac_config = config[CONF_MAC_ADDRESS]
     
     if CONF_MOVEMENT in config:
         sens = await binary_sensor.new_binary_sensor(config[CONF_MOVEMENT])
-        cg.add(parent.register_movement_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_movement_sensor(template_, sens))
     
     if CONF_MAGNETIC in config:
         sens = await binary_sensor.new_binary_sensor(config[CONF_MAGNETIC])
-        cg.add(parent.register_magnetic_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_magnetic_sensor(template_, sens))
     
     if CONF_LOW_BATTERY in config:
         sens = await binary_sensor.new_binary_sensor(config[CONF_LOW_BATTERY])
-        cg.add(parent.register_low_battery_sensor(mac_int, sens))
+        template_ = await cg.templatable(mac_config, [], cg.std_string)
+        cg.add(parent.register_low_battery_sensor(template_, sens))

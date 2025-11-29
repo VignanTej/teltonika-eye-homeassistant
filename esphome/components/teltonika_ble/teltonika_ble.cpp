@@ -9,21 +9,34 @@ TeltonikaBLEComponent::TeltonikaBLEComponent() = default;
 
 void TeltonikaBLEComponent::setup() {
   ESP_LOGI(TAG, "Setting up Teltonika BLE component...");
-  ESP_LOGI(TAG, "Discover mode: %s", this->discover_ ? "enabled" : "disabled"); 
+  ESP_LOGI(TAG, "Discover mode: %s", this->discover_ ? "enabled" : "disabled");
+  this->update_mac_addresses();
   this->last_scan_ms_ = millis();
   ESP_LOGI(TAG, "Teltonika BLE component setup complete");
 }
 
 void TeltonikaBLEComponent::loop() {
   uint32_t now = millis();
+  this->update_mac_addresses();
   this->apply_timeout_logic(now);
 }
 
 void TeltonikaBLEComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "Teltonika BLE:");
-  ESP_LOGCONFIG(TAG, " Discover devices: %s", YESNO(this->discover_));
+  ESP_LOGCONFIG(TAG, "  Discover devices: %s", YESNO(this->discover_));
   ESP_LOGCONFIG(TAG, "  Global timeout: %u ms", this->global_timeout_ms_);
-  ESP_LOGCONFIG(TAG, "  Registered sensor MACs: %d", this->registered_sensors_.temperature.size());
+  int sensor_count = this->registered_sensors_.temperature.size() +
+                     this->registered_sensors_.humidity.size() +
+                     this->registered_sensors_.movement_count.size() +
+                     this->registered_sensors_.pitch.size() +
+                     this->registered_sensors_.roll.size() +
+                     this->registered_sensors_.battery_voltage.size() +
+                     this->registered_sensors_.battery_level.size() +
+                     this->registered_sensors_.rssi.size() +
+                     this->registered_sensors_.movement_state.size() +
+                     this->registered_sensors_.magnetic_detected.size() +
+                     this->registered_sensors_.low_battery.size();
+  ESP_LOGCONFIG(TAG, "  Registered sensors: %d", sensor_count);
 }
 
 bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &device) {
@@ -97,17 +110,24 @@ bool TeltonikaBLEComponent::parse_device(const esp32_ble_tracker::ESPBTDevice &d
   uint64_t mac = device.address_uint64();
   
   // Check if we have any sensors registered for this device
-  bool has_sensors = (this->registered_sensors_.temperature.find(mac) != this->registered_sensors_.temperature.end() ||
-                      this->registered_sensors_.humidity.find(mac) != this->registered_sensors_.humidity.end() ||
-                      this->registered_sensors_.movement_count.find(mac) != this->registered_sensors_.movement_count.end() ||
-                      this->registered_sensors_.pitch.find(mac) != this->registered_sensors_.pitch.end() ||
-                      this->registered_sensors_.roll.find(mac) != this->registered_sensors_.roll.end() ||
-                      this->registered_sensors_.battery_voltage.find(mac) != this->registered_sensors_.battery_voltage.end() ||
-                      this->registered_sensors_.battery_level.find(mac) != this->registered_sensors_.battery_level.end() ||
-                      this->registered_sensors_.rssi.find(mac) != this->registered_sensors_.rssi.end() ||
-                      this->registered_sensors_.movement_state.find(mac) != this->registered_sensors_.movement_state.end() ||
-                      this->registered_sensors_.magnetic_detected.find(mac) != this->registered_sensors_.magnetic_detected.end() ||
-                      this->registered_sensors_.low_battery.find(mac) != this->registered_sensors_.low_battery.end());
+  auto has_mac_registered = [mac](const auto &registrations) {
+    for (const auto &reg : registrations) {
+      if (reg.cached_mac == mac) return true;
+    }
+    return false;
+  };
+  
+  bool has_sensors = has_mac_registered(this->registered_sensors_.temperature) ||
+                     has_mac_registered(this->registered_sensors_.humidity) ||
+                     has_mac_registered(this->registered_sensors_.movement_count) ||
+                     has_mac_registered(this->registered_sensors_.pitch) ||
+                     has_mac_registered(this->registered_sensors_.roll) ||
+                     has_mac_registered(this->registered_sensors_.battery_voltage) ||
+                     has_mac_registered(this->registered_sensors_.battery_level) ||
+                     has_mac_registered(this->registered_sensors_.rssi) ||
+                     has_mac_registered(this->registered_sensors_.movement_state) ||
+                     has_mac_registered(this->registered_sensors_.magnetic_detected) ||
+                     has_mac_registered(this->registered_sensors_.low_battery);
 
   if (!this->discover_ && !has_sensors) {
     ESP_LOGV(TAG, "Device %s not configured, skipping", device.address_str().c_str());
@@ -244,64 +264,31 @@ void TeltonikaBLEComponent::publish_values(uint64_t mac, const TeltonikaCachedVa
     }
   };
 
-  // Publish all sensor values if registered
-  auto temp_it = this->registered_sensors_.temperature.find(mac);
-  if (temp_it != this->registered_sensors_.temperature.end()) {
-    publish(temp_it->second, values.temperature_c);
-  }
-  
-  auto hum_it = this->registered_sensors_.humidity.find(mac);
-  if (hum_it != this->registered_sensors_.humidity.end()) {
-    publish(hum_it->second, values.humidity_percent);
-  }
-  
-  auto mv_count_it = this->registered_sensors_.movement_count.find(mac);
-  if (mv_count_it != this->registered_sensors_.movement_count.end()) {
-    publish(mv_count_it->second, values.movement_count);
-  }
-  
-  auto pitch_it = this->registered_sensors_.pitch.find(mac);
-  if (pitch_it != this->registered_sensors_.pitch.end()) {
-    publish(pitch_it->second, values.pitch_deg);
-  }
-  
-  auto roll_it = this->registered_sensors_.roll.find(mac);
-  if (roll_it != this->registered_sensors_.roll.end()) {
-    publish(roll_it->second, values.roll_deg);
-  }
-  
-  auto batt_v_it = this->registered_sensors_.battery_voltage.find(mac);
-  if (batt_v_it != this->registered_sensors_.battery_voltage.end()) {
-    publish(batt_v_it->second, values.battery_voltage_v);
-  }
-  
-  auto batt_l_it = this->registered_sensors_.battery_level.find(mac);
-  if (batt_l_it != this->registered_sensors_.battery_level.end()) {
-    publish(batt_l_it->second, values.battery_level_percent);
-  }
-  
-  auto rssi_it = this->registered_sensors_.rssi.find(mac);
-  if (rssi_it != this->registered_sensors_.rssi.end()) {
-    publish(rssi_it->second, values.rssi_dbm);
-  }
-  
-  // Publish binary sensors  
-  auto mv_state_it = this->registered_sensors_.movement_state.find(mac);
-  if (mv_state_it != this->registered_sensors_.movement_state.end()) {
-    publish_binary(mv_state_it->second, values.movement_state);
-  }
-  
-  auto mag_it = this->registered_sensors_.magnetic_detected.find(mac);
-  if (mag_it != this->registered_sensors_.magnetic_detected.end()) {
-    publish_binary(mag_it->second, values.magnetic_detected);
-  }
-  
-  auto low_batt_it = this->registered_sensors_.low_battery.find(mac);
-  if (low_batt_it != this->registered_sensors_.low_battery.end()) {
-    publish_binary(low_batt_it->second, values.low_battery);
-  }
+  // Helper to publish to matching sensor registrations
+  auto publish_to_matching = [mac](const auto &registrations, auto publish_func, auto value) {
+    for (const auto &reg : registrations) {
+      if (reg.cached_mac == mac) {
+        publish_func(reg.sensor, value);
+      }
+    }
+  };
 
-  ESP_LOGD(TAG, "[%02X:%02X:%02X:%02X:%02X:%02X] Published Teltonika data", 
+  // Publish all sensor values if registered
+  publish_to_matching(this->registered_sensors_.temperature, publish, values.temperature_c);
+  publish_to_matching(this->registered_sensors_.humidity, publish, values.humidity_percent);
+  publish_to_matching(this->registered_sensors_.movement_count, publish, (float)values.movement_count);
+  publish_to_matching(this->registered_sensors_.pitch, publish, (float)values.pitch_deg);
+  publish_to_matching(this->registered_sensors_.roll, publish, (float)values.roll_deg);
+  publish_to_matching(this->registered_sensors_.battery_voltage, publish, values.battery_voltage_v);
+  publish_to_matching(this->registered_sensors_.battery_level, publish, values.battery_level_percent);
+  publish_to_matching(this->registered_sensors_.rssi, publish, (float)values.rssi_dbm);
+  
+  // Publish binary sensors
+  publish_to_matching(this->registered_sensors_.movement_state, publish_binary, values.movement_state);
+  publish_to_matching(this->registered_sensors_.magnetic_detected, publish_binary, values.magnetic_detected);
+  publish_to_matching(this->registered_sensors_.low_battery, publish_binary, values.low_battery);
+
+  ESP_LOGD(TAG, "[%02X:%02X:%02X:%02X:%02X:%02X] Published Teltonika data",
            (uint8_t)((mac >> 40) & 0xFF),
            (uint8_t)((mac >> 32) & 0xFF),
            (uint8_t)((mac >> 24) & 0xFF),
@@ -326,67 +313,103 @@ void TeltonikaBLEComponent::apply_timeout_logic(uint32_t now_ms) {
   for (uint64_t mac : to_timeout) {
     ESP_LOGW(TAG, "Device timeout, clearing values");
     
-    // Publish NAN to all registered sensors for this device
-    auto temp_it = this->registered_sensors_.temperature.find(mac);
-    if (temp_it != this->registered_sensors_.temperature.end()) {
-      temp_it->second->publish_state(NAN);
-    }
+    // Helper to clear matching sensor registrations
+    auto clear_matching_sensors = [mac](const auto &registrations) {
+      for (const auto &reg : registrations) {
+        if (reg.cached_mac == mac && reg.sensor != nullptr) {
+          reg.sensor->publish_state(NAN);
+        }
+      }
+    };
     
-    auto hum_it = this->registered_sensors_.humidity.find(mac);
-    if (hum_it != this->registered_sensors_.humidity.end()) {
-      hum_it->second->publish_state(NAN);
-    }
+    auto clear_matching_binary = [mac](const auto &registrations) {
+      for (const auto &reg : registrations) {
+        if (reg.cached_mac == mac && reg.sensor != nullptr) {
+          reg.sensor->publish_state(false);
+        }
+      }
+    };
     
-    // Clear movement count, pitch, roll, battery sensors similarly
-    auto mv_count_it = this->registered_sensors_.movement_count.find(mac);
-    if (mv_count_it != this->registered_sensors_.movement_count.end()) {
-      mv_count_it->second->publish_state(NAN);
-    }
+    // Clear all sensor types
+    clear_matching_sensors(this->registered_sensors_.temperature);
+    clear_matching_sensors(this->registered_sensors_.humidity);
+    clear_matching_sensors(this->registered_sensors_.movement_count);
+    clear_matching_sensors(this->registered_sensors_.pitch);
+    clear_matching_sensors(this->registered_sensors_.roll);
+    clear_matching_sensors(this->registered_sensors_.battery_voltage);
+    clear_matching_sensors(this->registered_sensors_.battery_level);
+    clear_matching_sensors(this->registered_sensors_.rssi);
     
-    auto pitch_it = this->registered_sensors_.pitch.find(mac);
-    if (pitch_it != this->registered_sensors_.pitch.end()) {
-      pitch_it->second->publish_state(NAN);
-    }
-    
-    auto roll_it = this->registered_sensors_.roll.find(mac);
-    if (roll_it != this->registered_sensors_.roll.end()) {
-      roll_it->second->publish_state(NAN);
-    }
-    
-    auto batt_v_it = this->registered_sensors_.battery_voltage.find(mac);
-    if (batt_v_it != this->registered_sensors_.battery_voltage.end()) {
-      batt_v_it->second->publish_state(NAN);
-    }
-    
-    auto batt_l_it = this->registered_sensors_.battery_level.find(mac);
-    if (batt_l_it != this->registered_sensors_.battery_level.end()) {
-      batt_l_it->second->publish_state(NAN);
-    }
-    
-    auto rssi_it = this->registered_sensors_.rssi.find(mac);
-    if (rssi_it != this->registered_sensors_.rssi.end()) {
-      rssi_it->second->publish_state(NAN);
-    }
-    
-    // Set binary sensors to false
-    auto mv_state_it = this->registered_sensors_.movement_state.find(mac);
-    if (mv_state_it != this->registered_sensors_.movement_state.end()) {
-      mv_state_it->second->publish_state(false);
-    }
-    
-    auto mag_it = this->registered_sensors_.magnetic_detected.find(mac);
-    if (mag_it != this->registered_sensors_.magnetic_detected.end()) {
-      mag_it->second->publish_state(false);
-    }
-    
-    auto low_batt_it = this->registered_sensors_.low_battery.find(mac);
-    if (low_batt_it != this->registered_sensors_.low_battery.end()) {
-      low_batt_it->second->publish_state(false);
-    }
+    // Clear binary sensors
+    clear_matching_binary(this->registered_sensors_.movement_state);
+    clear_matching_binary(this->registered_sensors_.magnetic_detected);
+    clear_matching_binary(this->registered_sensors_.low_battery);
     
     this->device_timeouts_.erase(mac);
     this->cache_.erase(mac);
   }
+}
+
+void TeltonikaBLEComponent::update_mac_addresses() {
+  // Update all sensor registrations
+  auto update_registrations = [](auto &registrations) {
+    for (auto &reg : registrations) {
+      if (reg.mac_template.has_value()) {
+        auto mac_str = reg.mac_template.value();
+        if (!mac_str.empty()) {
+          // Parse MAC address string to uint64
+          uint64_t new_mac = 0;
+          if (sscanf(mac_str.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                     (uint8_t*)&new_mac + 5,
+                     (uint8_t*)&new_mac + 4,
+                     (uint8_t*)&new_mac + 3,
+                     (uint8_t*)&new_mac + 2,
+                     (uint8_t*)&new_mac + 1,
+                     (uint8_t*)&new_mac) == 6) {
+            // Reconstruct MAC in correct byte order
+            uint64_t parsed_mac = 0;
+            parsed_mac  = ((uint64_t)*((uint8_t*)&new_mac + 5)) << 40;
+            parsed_mac |= ((uint64_t)*((uint8_t*)&new_mac + 4)) << 32;
+            parsed_mac |= ((uint64_t)*((uint8_t*)&new_mac + 3)) << 24;
+            parsed_mac |= ((uint64_t)*((uint8_t*)&new_mac + 2)) << 16;
+            parsed_mac |= ((uint64_t)*((uint8_t*)&new_mac + 1)) << 8;
+            parsed_mac |= ((uint64_t)*((uint8_t*)&new_mac));
+            
+            if (parsed_mac != reg.cached_mac) {
+              reg.cached_mac = parsed_mac;
+              reg.needs_update = true;
+            }
+          }
+        }
+      }
+    }
+  };
+  
+  update_registrations(this->registered_sensors_.temperature);
+  update_registrations(this->registered_sensors_.humidity);
+  update_registrations(this->registered_sensors_.movement_count);
+  update_registrations(this->registered_sensors_.pitch);
+  update_registrations(this->registered_sensors_.roll);
+  update_registrations(this->registered_sensors_.battery_voltage);
+  update_registrations(this->registered_sensors_.battery_level);
+  update_registrations(this->registered_sensors_.rssi);
+  update_registrations(this->registered_sensors_.movement_state);
+  update_registrations(this->registered_sensors_.magnetic_detected);
+  update_registrations(this->registered_sensors_.low_battery);
+}
+
+uint64_t TeltonikaBLEComponent::parse_mac_address(const std::string &mac_str) {
+  uint8_t bytes[6];
+  if (sscanf(mac_str.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+             &bytes[0], &bytes[1], &bytes[2], &bytes[3], &bytes[4], &bytes[5]) != 6) {
+    return 0;
+  }
+  
+  uint64_t mac = 0;
+  for (int i = 0; i < 6; i++) {
+    mac |= ((uint64_t)bytes[i]) << (8 * (5 - i));
+  }
+  return mac;
 }
 
 }  // namespace teltonika_ble

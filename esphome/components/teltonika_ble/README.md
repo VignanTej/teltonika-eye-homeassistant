@@ -136,6 +136,49 @@ binary_sensor:
       name: "Teltonika EYE 1 Low Battery"
 ```
 
+### Dynamic MAC Address Configuration (Templatable)
+
+The `mac_address` field now supports templatable values, allowing you to dynamically control which device is monitored using text entities or lambdas:
+
+```yaml
+# Define text inputs for MAC addresses
+text:
+  - platform: template
+    id: eye1_mac_text
+    name: "EYE 1 MAC"
+    initial_value: "7C:D9:F4:13:BD:BF"
+    optimistic: true
+    mode: text
+
+  - platform: template
+    id: eye2_mac_text
+    name: "EYE 2 MAC"
+    initial_value: "7C:D9:F4:14:21:5D"
+    optimistic: true
+    mode: text
+
+# Use lambda to reference text entity
+sensor:
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye1_mac_text).state.c_str();
+    temperature:
+      name: "EYE 1 Temperature"
+    humidity:
+      name: "EYE 1 Humidity"
+
+binary_sensor:
+  - platform: teltonika_ble
+    teltonika_ble_id: teltonika_ble_component
+    mac_address: !lambda |-
+      return id(eye2_mac_text).state.c_str();
+    movement:
+      name: "EYE 2 Movement"
+```
+
+This allows you to switch which Teltonika EYE sensor is being monitored simply by updating the text entity value in Home Assistant, without recompiling the firmware.
+
 ### Configuration Options
 
 **teltonika_ble platform:**
@@ -149,7 +192,7 @@ binary_sensor:
 | Option               | Type       | Description                                    |
 |----------------------|------------|------------------------------------------------|
 | `teltonika_ble_id`   | ID         | Reference to teltonika_ble component           |
-| `mac_address`        | MAC        | Teltonika device MAC address                   |
+| `mac_address`        | MAC/Lambda | Teltonika device MAC address (static or templatable) |
 | `temperature`        | sensor     | Temperature sensor config (optional)           |
 | `humidity`           | sensor     | Humidity sensor config (optional)              |
 | `movement_count`     | sensor     | Movement counter sensor config (optional)      |
@@ -163,7 +206,7 @@ binary_sensor:
 | Option               | Type          | Description                                |
 |----------------------|---------------|--------------------------------------------|
 | `teltonika_ble_id`   | ID            | Reference to teltonika_ble component       |
-| `mac_address`        | MAC           | Teltonika device MAC address               |
+| `mac_address`        | MAC/Lambda    | Teltonika device MAC address (static or templatable) |
 | `movement`           | binary_sensor | Movement detection (optional)              |
 | `magnetic`           | binary_sensor | Magnetic field detection (optional)        |
 | `low_battery`        | binary_sensor | Low battery alert (optional)               |
