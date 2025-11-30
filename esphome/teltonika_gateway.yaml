@@ -81,10 +81,7 @@ globals:
     type: std::string
     restore_value: true
     max_restore_data_length: 100
-    initial_value: !lambda |-
-      std::string prefix = "esphome/";
-      prefix += App.get_name();
-      return prefix;
+    initial_value: '"esphome"'
 
 time:
   - platform: sntp
