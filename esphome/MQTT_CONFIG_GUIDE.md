@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Teltonika Gateway includes MQTT support for publishing sensor data to your MQTT broker. MQTT credentials are configured directly in YAML using the `secrets.yaml` file for security.
+The Teltonika Gateway includes MQTT support for publishing sensor data to your MQTT broker. MQTT credentials are configured statically in YAML using the `secrets.yaml` file. Changes to MQTT settings require recompiling and reflashing the firmware.
+
+**Note:** As of the latest version, runtime MQTT configuration via the web UI has been removed to ensure compilation stability. All MQTT settings must be configured in `secrets.yaml` before compilation.
 
 ## Quick Setup
 
@@ -41,8 +43,11 @@ mqtt:
   password: !secret mqtt_password
   discovery: true
   discovery_retain: true
-  topic_prefix: !lambda |-
-    return App.get_name().c_str();
+  topic_prefix: "esphome"
+  on_connect:
+    - logger.log: "Connected to MQTT broker"
+  on_disconnect:
+    - logger.log: "Disconnected from MQTT broker"
 ```
 
 ### Standard MQTT Ports
@@ -54,9 +59,7 @@ mqtt:
 
 ### Topic Prefix
 
-The MQTT topic prefix uses the device name with MAC address suffix:
-- Format: `tez-teltonika-gateway-XXXXXX` (where XXXXXX is last 6 chars of MAC)
-- Ensures unique topics when running multiple gateways
+The MQTT topic prefix is set to `"esphome"` by default. This can be changed in the YAML configuration if needed. The device publishes under this prefix with its unique device name.
 
 ### Published Topics
 
@@ -181,13 +184,17 @@ If you see connection failures, verify:
    - Check HA: Settings → Devices & Services → MQTT → Configure
    - Look for new devices
 
-### Credential Changes Not Taking Effect
+### Changing MQTT Configuration
 
-After changing `secrets.yaml`:
-1. Click "Install" in ESPHome dashboard
-2. Firmware recompiles with new credentials
-3. Upload to device
-4. Device reboots with new MQTT settings
+MQTT settings are compiled into the firmware. To change them:
+
+1. Edit `esphome/secrets.yaml` with new credentials
+2. Click "Install" in ESPHome dashboard
+3. Firmware recompiles with new configuration
+4. Upload to device (OTA or USB)
+5. Device reboots with updated MQTT settings
+
+**Important:** There is no runtime MQTT configuration UI. All changes must be made before compilation.
 
 ## Alternative: Hardcoded Configuration
 
@@ -228,8 +235,9 @@ mosquitto_sub -h your-broker-ip -u mqtt_user -P mqtt_password \
 
 ---
 
-**Summary:** 
+**Summary:**
 - MQTT credentials go in `secrets.yaml` (keeps them private)
-- Changes require recompilation (that's normal for ESPHow  configuration)
+- Changes require recompilation and reflashing (static configuration)
+- No runtime configuration UI - all settings are compiled into firmware
 - Auto-discovery makes integration with Home Assistant seamless
-- Topic prefix includes device MAC for uniqueness
+- Use the ESPHome web dashboard or CLI to update and flash firmware

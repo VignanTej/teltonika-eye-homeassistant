@@ -7,6 +7,10 @@
 
 _Integration to integrate with [Teltonika EYE Sensors][teltonika_eye] via Bluetooth LE._
 
+**This integration provides two deployment options:**
+1. **Home Assistant Custom Integration** - Direct BLE integration with Home Assistant
+2. **ESPHome Gateway** - ESP32-based BLE-to-MQTT bridge for extended range
+
 **This integration will set up the following platforms.**
 
 Platform | Description
@@ -24,7 +28,8 @@ Platform | Description
 - 📐 **Orientation Sensors** - Pitch and roll angle measurements
 - 📶 **Signal Strength** - Bluetooth RSSI monitoring
 - 🔄 **Auto-Discovery** - Automatic sensor discovery via Bluetooth LE
-- ⚙️ **Easy Configuration** - UI-based setup, no YAML required
+- ⚙️ **Easy Configuration** - UI-based setup (or ESPHome for gateway option)
+- 🌐 **ESPHome Gateway Option** - ESP32 BLE-to-MQTT bridge for extended coverage
 
 ## Installation
 
@@ -52,12 +57,29 @@ Platform | Description
 
 ## Configuration
 
+### Option 1: Home Assistant Direct Integration
+
 1. In the HA UI go to "Settings" -> "Devices & Services"
 2. Click "Add Integration"
 3. Search for "Teltonika EYE Sensors"
 4. Follow the configuration steps:
    - Set scan duration (1-30 seconds, default: 5)
    - Click "Submit"
+
+### Option 2: ESPHome Gateway (Recommended for Extended Range)
+
+For better range and reliability, use an ESP32 as a BLE-to-MQTT gateway:
+
+1. See the [ESPHome Gateway Documentation](esphome/MQTT_CONFIG_GUIDE.md) for complete setup instructions
+2. Configure MQTT broker details in `esphome/secrets.yaml`
+3. Flash the gateway firmware to an ESP32 device
+4. Sensors will auto-discover in Home Assistant via MQTT
+
+**Benefits of ESPHome Gateway:**
+- Extend BLE range with strategically placed ESP32 devices
+- Lower power consumption on Home Assistant server
+- More reliable BLE scanning with dedicated hardware
+- Support for up to 5 Teltonika EYE sensors per gateway
 
 ## Entities
 
