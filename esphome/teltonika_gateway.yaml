@@ -35,23 +35,56 @@ ota:
 web_server:
   port: 80
 
-# MQTT Configuration - Edit directly in YAML or use secrets.yaml
+# MQTT Configuration - Runtime configurable via UI
+# Disabled on boot, use buttons to enable/disable and apply settings
 mqtt:
-  broker: !secret mqtt_broker
-  port: !secret mqtt_port
-  username: !secret mqtt_username
-  password: !secret mqtt_password
+  id: mqtt_client
+  broker: ""
+  port: 1883
+  username: ""
+  password: ""
+  enable_on_boot: true
   discovery: true
   discovery_retain: true
-  topic_prefix: !lambda |-
-    std::string prefix = "esphome/";
-    prefix += App.get_name();
-    return prefix;
-  log_topic: null;
+  log_topic: null
   on_connect:
     - logger.log: "Connected to MQTT broker"
   on_disconnect:
     - logger.log: "Disconnected from MQTT broker"
+
+# Globals to store MQTT configuration (restored on reboot, initialized from secrets)
+globals:
+  - id: mqtt_broker_global
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 100
+    initial_value: !secret mqtt_broker
+  
+  - id: mqtt_port_global
+    type: int
+    restore_value: true
+    initial_value: !secret mqtt_port
+  
+  - id: mqtt_username_global
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 50
+    initial_value: !secret mqtt_username
+  
+  - id: mqtt_password_global
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 50
+    initial_value: !secret mqtt_password
+  
+  - id: mqtt_topic_prefix_global
+    type: std::string
+    restore_value: true
+    max_restore_data_length: 100
+    initial_value: !lambda |-
+      std::string prefix = "esphome/";
+      prefix += App.get_name();
+      return prefix;
 
 time:
   - platform: sntp
@@ -89,9 +122,102 @@ text_sensor:
     mac_address:
       name: "Gateway MAC"
 
-# ---------------- CONFIG TEXT FIELDS (SHOW IN HA DEVICE UI) -------------
+# ---------------- MQTT CONFIG UI (SHOW IN HA DEVICE UI) -----------------
+
+# MQTT Port Configuration
+number:
+  - platform: template
+    id: mqtt_port_number
+    name: "MQTT Port"
+    entity_category: config
+    optimistic: false
+    min_value: 1
+    max_value: 65535
+    step: 1
+    mode: box
+    lambda: |-
+      return id(mqtt_port_global);
+    set_action:
+      - globals.set:
+          id: mqtt_port_global
+          value: !lambda 'return (int)x;'
+      - logger.log:
+          format: "MQTT port updated to %d. Click 'Apply MQTT Settings' to activate."
+          args: ['(int)x']
 
 text:
+  # MQTT Broker Configuration
+  - platform: template
+    id: mqtt_broker_text
+    name: "MQTT Broker"
+    entity_category: config
+    optimistic: false
+    min_length: 0
+    max_length: 100
+    mode: text
+    lambda: |-
+      return id(mqtt_broker_global);
+    set_action:
+      - globals.set:
+          id: mqtt_broker_global
+          value: !lambda 'return x;'
+      - logger.log:
+          format: "MQTT broker updated to %s. Click 'Apply MQTT Settings' to activate."
+          args: ['x.c_str()']
+
+  # MQTT Username Configuration
+  - platform: template
+    id: mqtt_username_text
+    name: "MQTT Username"
+    entity_category: config
+    optimistic: false
+    min_length: 0
+    max_length: 50
+    mode: text
+    lambda: |-
+      return id(mqtt_username_global);
+    set_action:
+      - globals.set:
+          id: mqtt_username_global
+          value: !lambda 'return x;'
+      - logger.log: "MQTT username updated. Click 'Apply MQTT Settings' to activate."
+
+  # MQTT Password Configuration
+  - platform: template
+    id: mqtt_password_text
+    name: "MQTT Password"
+    entity_category: config
+    optimistic: false
+    min_length: 0
+    max_length: 50
+    mode: password
+    lambda: |-
+      return id(mqtt_password_global);
+    set_action:
+      - globals.set:
+          id: mqtt_password_global
+          value: !lambda 'return x;'
+      - logger.log: "MQTT password updated. Click 'Apply MQTT Settings' to activate."
+
+  # MQTT Topic Prefix Configuration
+  - platform: template
+    id: mqtt_topic_prefix_text
+    name: "MQTT Topic Prefix"
+    entity_category: config
+    optimistic: false
+    min_length: 0
+    max_length: 100
+    mode: text
+    lambda: |-
+      return id(mqtt_topic_prefix_global);
+    set_action:
+      - globals.set:
+          id: mqtt_topic_prefix_global
+          value: !lambda 'return x;'
+      - logger.log:
+          format: "MQTT topic prefix updated to %s. Click 'Apply MQTT Settings' to activate."
+          args: ['x.c_str()']
+
   # Teltonika EYE MAC Addresses
   - platform: template
     id: eye1_mac_text
@@ -147,6 +273,37 @@ text:
     min_length: 0
     max_length: 17
     mode: text
+
+# ---------------- MQTT CONTROL BUTTONS -----------------------------------
+
+button:
+  - platform: template
+    name: "Apply MQTT Settings"
+    entity_category: config
+    on_press:
+      - lambda: |-
+          id(mqtt_client)->set_broker_address(id(mqtt_broker_global));
+          id(mqtt_client)->set_broker_port(id(mqtt_port_global));
+          id(mqtt_client)->set_credentials(id(mqtt_username_global), id(mqtt_password_global));
+          id(mqtt_client)->set_topic_prefix(id(mqtt_topic_prefix_global));
+      - mqtt.disconnect:
+      - delay: 1s
+      - mqtt.connect:
+      - logger.log: "MQTT settings applied and reconnecting..."
+
+  - platform: template
+    name: "Enable MQTT"
+    entity_category: config
+    on_press:
+      - mqtt.enable:
+      - logger.log: "MQTT enabled"
+
+  - platform: template
+    name: "Disable MQTT"
+    entity_category: config
+    on_press:
+      - mqtt.disable:
+      - logger.log: "MQTT disabled"
 
 # ------------- SENSORS (UP TO 5 EYE DEVICES) ----------------------------
 
