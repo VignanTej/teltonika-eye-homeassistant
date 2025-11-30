@@ -44,7 +44,10 @@ mqtt:
   discovery: true
   discovery_retain: true
   topic_prefix: !lambda |-
-    return App.get_name().c_str();
+    std::string prefix = "esphome/";
+    prefix += App.get_name();
+    return prefix;
+  log_topic: null;
   on_connect:
     - logger.log: "Connected to MQTT broker"
   on_disconnect:
