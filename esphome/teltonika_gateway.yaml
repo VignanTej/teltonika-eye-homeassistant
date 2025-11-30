@@ -283,9 +283,9 @@ button:
           id(mqtt_client)->set_broker_port(id(mqtt_port_global));
           id(mqtt_client)->set_credentials(id(mqtt_username_global), id(mqtt_password_global));
           id(mqtt_client)->set_topic_prefix(id(mqtt_topic_prefix_global));
-      - mqtt.disconnect:
+      - mqtt.disable:
       - delay: 1s
-      - mqtt.connect:
+      - mqtt.enable:
       - logger.log: "MQTT settings applied and reconnecting..."
 
   - platform: template
