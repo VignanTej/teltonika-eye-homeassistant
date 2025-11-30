@@ -2,210 +2,234 @@
 
 ## Overview
 
-The Teltonika Gateway now includes MQTT support with UI-configurable settings. MQTT broker, username, and password can be viewed and edited through Home Assistant or the ESPHome Web UI.
+The Teltonika Gateway includes MQTT support for publishing sensor data to your MQTT broker. MQTT credentials are configured directly in YAML using the `secrets.yaml` file for security.
 
-## Configuration Fields
+## Quick Setup
 
-Four configuration entities are available for MQTT configuration:
+### Step 1: Create secrets.yaml
 
-| Field | Type | Description | Default Value |
-|-------|------|-------------|---------------|
-| **MQTT Broker** | Text | Hostname or IP address of your MQTT broker | `homeassistant.local` |
-| **MQTT Port** | Number | Port number for MQTT connection | `1883` |
-| **MQTT Username** | Text | Username for MQTT authentication | `mqtt_user` |
-| **MQTT Password** | Text | Password for MQTT authentication (hidden) | `mqtt_password` |
-
-**Standard MQTT Ports:**
-- **1883** - Standard MQTT (unencrypted)
-- **8883** - MQTT over TLS (encrypted)
-
-## How to Configure
-
-### Via Home Assistant UI
-
-1. Open Home Assistant
-2. Go to **Settings** → **Devices & Services**
-3. Find "Tez Teltonika EYE Gateway"
-4. Click on the device
-5. Scroll to the **Configuration** section
-6. Edit:
-   - MQTT Broker
-   - MQTT Username
-   - MQTT Password
-
-### Via ESPHome Web UI
-
-1. Open `http://[device-ip]` in your browser
-2. Find the configuration fields (text and number inputs)
-3. Update the MQTT settings:
-   - Broker hostname/IP
-   - Port number (1883 for standard, 8883 for TLS)
-   - Username
-   - Password
-4. Values are saved automatically to device flash
-
-## Important Limitation - Recompilation Required
-
-**⚠️ MQTT CONNECTION PARAMETERS ARE SET AT COMPILE TIME**
-
-Due to ESPHome architecture limitations:
-- Changing MQTT settings in the UI **updates the stored values**
-- However, the **active MQTT connection uses compile-time values**
-- You **must recompile and upload** new firmware for changes to take effect
-
-### Why This Limitation Exists
-
-ESPHome's MQTT component:
-1. Reads configuration during firmware compilation
-2. Establishes connection during `setup()` phase
-3. Cannot dynamically reconfigure the connection at runtime
-
-The text entities provide a convenient way to:
-- ✅ Store your MQTT credentials on the device
-- ✅ View current settings in HA/Web UI
-- ✅ Edit settings without modifying YAML
-- ❌ But require recompilation to activate new settings
-
-## Step-by-Step: Changing MQTT Settings
-
-### Step 1: Update Settings in UI
-1. Open Home Assistant or Web UI
-2. Edit **MQTT Broker**, **MQTT Port**, **Username**, **Password**
-3. New values are saved to device flash memory
-
-### Step 2: Trigger Recompilation
-You have two options:
-
-**Option A: ESPHome Dashboard**
-1. Open ESPHome dashboard
-2. Click "Install" on your gateway device
-3. Choose "Wirelessly" or "Plug into serial port"
-4. Wait for compilation and upload
-5. Device reboots with new MQTT settings
-
-**Option B: Home Assistant ESP Home Integration**
-1. In ESPHome dashboard, click "Edit" on your device
-2. Make any minor change (e.g., add a comment)
-3. Click "Save"
-4. Click "Install"
-5. New firmware is compiled with updated MQTT values
-
-### Step 3: Verify Connection
-After reboot, check logs:
-```
-[mqtt] Connected to MQTT broker
+Copy the example file:
+```bash
+cp esphome/secrets.yaml.example esphome/secrets.yaml
 ```
 
-## MQTT Topics
+### Step 2: Edit Your Credentials
 
-Once connected, the gateway publishes to these topics:
+Edit `esphome/secrets.yaml` with your actual MQTT broker details:
 
-### Topic Prefix
+```yaml
+# MQTT Configuration
+mqtt_broker: "192.168.1.100"    # Your MQTT broker IP or hostname
+mqtt_port: 1883                  # Standard MQTT port
+mqtt_username: "your_username"
+mqtt_password: "your_password"
+```
 
-The MQTT topic prefix uses the device name with MAC address suffix for uniqueness:
-- Format: `tez-teltonika-gateway-XXXXXX` (where XXXXXX is the last 6 chars of MAC)
-- This ensures each gateway has unique topics when you have multiple gateways
+### Step 3: Compile and Upload
 
-### Status Topics
-- `tez-teltonika-gateway-XXXXXX/status` - Online/Offline status
-- `tez-teltonika-gateway-XXXXXX/debug` - Debug messages
+The MQTT configuration is compiled into the firmware. Upload the firmware to your ESP32.
 
-### Sensor Topics (per device)
-- `tez-teltonika-gateway-XXXXXX/sensor/teltonika_eye_1_temperature/state`
-- `tez-teltonika-gateway-XXXXXX/sensor/teltonika_eye_1_humidity/state`
-- `tez-teltonika-gateway-XXXXXX/sensor/teltonika_eye_1_battery_level/state`
-- `tez-teltonika-gateway-XXXXXX/sensor/teltonika_eye_1_rssi/state`
-- And so on for all configured sensors...
+## Configuration Reference
 
-### Binary Sensor Topics
-- `tez-teltonika-gateway-XXXXXX/binary_sensor/teltonika_eye_1_movement/state`
-- `tez-teltonika-gateway-XXXXXX/binary_sensor/teltonika_eye_1_magnetic_field/state`
-- `tez-teltonika-gateway-XXXXXX/binary_sensor/teltonika_eye_1_low_battery/state`
-
-### Text Sensor Topics
-- `tez-teltonika-gateway-XXXXXX/text_sensor/teltonika_devices_discovered/state`
-
-## Advanced: Direct MQTT Configuration
-
-If you prefer to hardcode MQTT settings (no UI configuration):
+### MQTT Settings in teltonika_gateway.yaml
 
 ```yaml
 mqtt:
-  broker: "192.168.1.100"
-  username: "my_mqtt_user"
-  password: "my_secure_password"
-  port: 1883
+  broker: !secret mqtt_broker
+  port: !secret mqtt_port
+  username: !secret mqtt_username
+  password: !secret mqtt_password
   discovery: true
+  discovery_retain: true
+  topic_prefix: !lambda |-
+    return App.get_name().c_str();
+```
+
+### Standard MQTT Ports
+
+- **1883** - Standard MQTT (unencrypted)
+- **8883** - MQTT over TLS (encrypted, requires SSL configuration)
+
+## MQTT Topics
+
+### Topic Prefix
+
+The MQTT topic prefix uses the device name with MAC address suffix:
+- Format: `tez-teltonika-gateway-XXXXXX` (where XXXXXX is last 6 chars of MAC)
+- Ensures unique topics when running multiple gateways
+
+### Published Topics
+
+**Status:**
+- `tez-teltonika-gateway-XXXXXX/status` - `online`/`offline`
+
+**Sensors (per device):**
+- `.../sensor/teltonika_eye_1_temperature/state`
+- `.../sensor/teltonika_eye_1_humidity/state`
+- `.../sensor/teltonika_eye_1_battery_level/state`
+- `.../sensor/teltonika_eye_1_battery_voltage/state`
+- `.../sensor/teltonika_eye_1_movement_count/state`
+- `.../sensor/teltonika_eye_1_pitch/state`
+- `.../sensor/teltonika_eye_1_roll/state`
+- `.../sensor/teltonika_eye_1_rssi/state`
+
+**Binary Sensors:**
+- `.../binary_sensor/teltonika_eye_1_movement/state`
+- `.../binary_sensor/teltonika_eye_1_magnetic_field/state`
+- `.../binary_sensor/teltonika_eye_1_low_battery/state`
+
+**Text Sensors:**
+- `.../text_sensor/teltonika_devices_discovered/state`
+- `.../text_sensor/gateway_ip/state`
+- `.../text_sensor/gateway_mac/state`
+
+## Home Assistant Integration
+
+### Auto-Discovery
+
+MQTT auto-discovery is enabled by default. Devices will automatically appear in Home Assistant:
+
+1. Ensure your Home Assistant has MQTT integration configured
+2. Both HA and the gateway must connect to same MQTT broker
+3. Devices appear in: **Settings** → **Devices & Services** → **MQTT**
+4. Look for "Tez Teltonika EYE Gateway"
+
+### Manual Topic Subscription
+
+If auto-discovery isn't working, manually subscribe to topics:
+
+```yaml
+# configuration.yaml
+mqtt:
+  sensor:
+    - name: "EYE 1 Temperature"
+      state_topic: "tez-teltonika-gateway-XXXXXX/sensor/teltonika_eye_1_temperature/state"
+      unit_of_measurement: "°C"
+      device_class: temperature
+```
+
+## Security
+
+### Protecting MQTT Credentials
+
+The `secrets.yaml` file should be added to `.gitignore`:
+
+```bash
+# In your .gitignore
+esphome/secrets.yaml
+```
+
+This prevents accidentally committing credentials to version control.
+
+### MQTT Over TLS
+
+For encrypted MQTT connections, update your configuration:
+
+```yaml
+mqtt:
+  broker: !secret mqtt_broker
+  port: 8883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  ssl_fingerprints:
+    - "AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99 AA BB CC DD"
+```
+
+Get the SSL fingerprint from your MQTT broker:
+```bash
+openssl s_client -connect mqtt.example.com:8883 < /dev/null 2>/dev/null | \
+  openssl x509 -fingerprint -noout
 ```
 
 ## Troubleshooting
 
-### "MQTT not connecting after UI change"
-→ **Solution**: Recompile and upload new firmware
+### MQTT Not Connecting
 
-### "Credentials show in logs"
-→ Add to logger exclusions:
-```yaml
-logger:
-  level: INFO
-  logs:
-    mqtt: WARN  # Don't log MQTT details
+**Check broker is reachable:**
+```bash
+ping your-mqtt-broker-ip
 ```
 
-### "Want to disable MQTT"
-→ Comment out the entire `mqtt:` block in YAML
+**Verify credentials:**
+- Double-check `secrets.yaml` for typos
+- Ensure MQTT user has publish permissions
+- Check MQTT broker logs for authentication failures
 
-### "Need different MQTT port"
-→ Edit YAML, change `port:` value (default is 1883 for MQTT, 8883 for MQTT/TLS)
+**Check ESPHome logs:**
+```
+[mqtt] Connecting to MQTT...
+[mqtt] Connected to MQTT broker
+```
 
-## Security Considerations
+If you see connection failures, verify:
+- Broker IP/hostname is correct
+- Port is correct (1883 for standard MQTT)
+- Username and password are valid
 
-### Password Security
-- MQTT password is stored in flash memory
-- Shown as `password` type in UI (hidden dots)
-- Transmitted in plain text over network (unless using MQTT/TLS)
+### Auto-Discovery Not Working
 
-### Recommendations
-1. Use strong MQTT passwords
-2. Consider MQTT over TLS for sensitive environments
-3. Restrict MQTT broker access by IP/network
-4. Use a dedicated MQTT user with minimal permissions
+1. **Verify HA MQTT integration is set up:**
+   - Settings → Devices & Services → MQTT
+   - Should show "Configured"
 
-### MQTT Over TLS
-For encrypted MQTT connections:
+2. **Check MQTT topic prefix:**
+   - Look in ESPHome logs for actual topic prefix used
+   - Verify HA is subscribed to `homeassistant/#`
+
+3. **Force re-discovery:**
+   - Restart ESPHome device
+   - Check HA: Settings → Devices & Services → MQTT → Configure
+   - Look for new devices
+
+### Credential Changes Not Taking Effect
+
+After changing `secrets.yaml`:
+1. Click "Install" in ESPHome dashboard
+2. Firmware recompiles with new credentials
+3. Upload to device
+4. Device reboots with new MQTT settings
+
+## Alternative: Hardcoded Configuration
+
+If you don't want to use `secrets.yaml`, you can hardcode values in the YAML:
 
 ```yaml
 mqtt:
-  broker: "secure-broker.example.com"
-  port: 8883
-  username: !lambda return id(mqtt_username_text).state.c_str();
-  password: !lambda return id(mqtt_password_text).state.c_str();
-  ssl_fingerprints:
-    - "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD"
+  broker: "192.168.1.100"
+  port: 1883
+  username: "mqtt_user"
+  password: "mqtt_password"
+  discovery: true
 ```
 
-## Integration with Home Assistant
+**Note:** This is less secure as credentials are visible in YAML file.
 
-Home Assistant automatically discovers MQTT devices when:
-- `discovery: true` is set (default)
-- Home Assistant has MQTT integration configured
-- Both are connected to the same MQTT broker
+## Testing MQTT Connection
 
-Entities appear in:
-- **Settings** → **Devices & Services** → **MQTT**
-- Look for "Tez Teltonika EYE Gateway"
+Use MQTT Explorer or command-line tools to verify topics:
+
+### Using mosquitto_sub
+
+```bash
+# Subscribe to all topics
+mosquitto_sub -h your-broker-ip -u mqtt_user -P mqtt_password -t '#' -v
+
+# Subscribe to specific device
+mosquitto_sub -h your-broker-ip -u mqtt_user -P mqtt_password \
+  -t 'tez-teltonika-gateway-+/sensor/+/state' -v
+```
+
+### Using MQTT Explorer
+
+1. Download MQTT Explorer
+2. Connect to your broker
+3. Navigate to `tez-teltonika-gateway-XXXXXX/`
+4. Verify topics are being published
 
 ---
 
-## Alternative: Full Runtime Reconfiguration
-
-For true runtime MQTT reconfiguration without recompilation, consider:
-
-1. **Use Home Assistant MQTT Integration** - Let HA handle MQTT
-2. **Dedicated MQTT Bridge Device** - Separate ESP32 as MQTT gateway
-3. **Custom Component** - Write C++ component with runtime reconfiguration (advanced)
-
-However, the current UI-configurable approach provides a good balance between:
-- ✅ Easy credential management
-- ✅ Visible in HA and Web UI
-- ⚠️ Requires one-time recompilation after changes
+**Summary:** 
+- MQTT credentials go in `secrets.yaml` (keeps them private)
+- Changes require recompilation (that's normal for ESPHow  configuration)
+- Auto-discovery makes integration with Home Assistant seamless
+- Topic prefix includes device MAC for uniqueness

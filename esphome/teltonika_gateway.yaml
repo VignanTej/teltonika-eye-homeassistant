@@ -35,19 +35,12 @@ ota:
 web_server:
   port: 80
 
-# MQTT Configuration (Note: Changing these values requires recompilation)
-# The values are stored in number/text entities that appear in HA UI and Web UI
-# After changing MQTT settings, you must recompile and upload new firmware
-# Topic prefix uses device name with MAC suffix for uniqueness
+# MQTT Configuration - Edit directly in YAML or use secrets.yaml
 mqtt:
-  broker: !lambda |-
-    return id(mqtt_broker_text).state.c_str();
-  port: !lambda |-
-    return (int)id(mqtt_port_number).state;
-  username: !lambda |-
-    return id(mqtt_username_text).state.c_str();
-  password: !lambda |-
-    return id(mqtt_password_text).state.c_str();
+  broker: !secret mqtt_broker
+  port: !secret mqtt_port
+  username: !secret mqtt_username
+  password: !secret mqtt_password
   discovery: true
   discovery_retain: true
   topic_prefix: !lambda |-
@@ -93,57 +86,9 @@ text_sensor:
     mac_address:
       name: "Gateway MAC"
 
-# ---------------- CONFIG FIELDS (SHOW IN HA DEVICE UI) ------------------
-
-# MQTT Port Configuration
-number:
-  - platform: template
-    id: mqtt_port_number
-    name: "MQTT Port"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_value: 1883
-    min_value: 1
-    max_value: 65535
-    step: 1
-    mode: box
+# ---------------- CONFIG TEXT FIELDS (SHOW IN HA DEVICE UI) -------------
 
 text:
-  # MQTT Configuration
-  - platform: template
-    id: mqtt_broker_text
-    name: "MQTT Broker"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_value: "homeassistant.local"
-    min_length: 0
-    max_length: 100
-    mode: text
-
-  - platform: template
-    id: mqtt_username_text
-    name: "MQTT Username"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_value: "mqtt_user"
-    min_length: 0
-    max_length: 50
-    mode: text
-
-  - platform: template
-    id: mqtt_password_text
-    name: "MQTT Password"
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_value: "mqtt_password"
-    min_length: 0
-    max_length: 50
-    mode: password
-
   # Teltonika EYE MAC Addresses
   - platform: template
     id: eye1_mac_text
