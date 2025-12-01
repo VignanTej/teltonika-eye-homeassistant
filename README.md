@@ -80,6 +80,13 @@ For better range and reliability, use an ESP32 as a BLE-to-MQTT gateway:
 - Lower power consumption on Home Assistant server
 - More reliable BLE scanning with dedicated hardware
 - Support for up to 5 Teltonika EYE sensors per gateway
+- Visual WiFi/API status indication via onboard LED (GPIO2)
+
+**WiFi Status LED Indicators:**
+- **Fast Pulse** (250ms) - WiFi disconnected, attempting to connect
+- **Slow Pulse** (500ms) - WiFi connected, waiting for Home Assistant API
+- **Solid ON** - Fully connected (WiFi + Home Assistant API)
+- **OFF** - Initial boot or error state
 
 ## Entities
 
