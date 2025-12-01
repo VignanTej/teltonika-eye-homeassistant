@@ -80,13 +80,24 @@ For better range and reliability, use an ESP32 as a BLE-to-MQTT gateway:
 - Lower power consumption on Home Assistant server
 - More reliable BLE scanning with dedicated hardware
 - Support for up to 5 Teltonika EYE sensors per gateway
-- Visual WiFi/API status indication via onboard LED (GPIO2)
+- Visual WiFi/MQTT/API status indication via onboard LED (GPIO2)
+- Real-time activity indicator for BLE data reception and door events
 
-**WiFi Status LED Indicators:**
-- **Fast Pulse** (250ms) - WiFi disconnected, attempting to connect
-- **Slow Pulse** (500ms) - WiFi connected, waiting for Home Assistant API
-- **Solid ON** - Fully connected (WiFi + Home Assistant API)
-- **OFF** - Initial boot or error state
+**Enhanced LED Status Indicators:**
+
+| Pattern | Timing | Meaning | WiFi | MQTT | API |
+|---------|--------|---------|------|------|-----|
+| **Fast Blink** | 100ms ON/OFF | WiFi disconnected | ❌ | ❌ | ❌ |
+| **Slow Blink** | 500ms ON/OFF | WiFi only connected | ✅ | ❌ | ❌ |
+| **Double Blink** | 200ms-100ms-200ms-500ms | WiFi + MQTT connected | ✅ | ✅ | ❌ |
+| **Solid ON** | Continuous | Fully connected | ✅ | ✅ | ✅ |
+
+**Activity Indicator:**
+- **Brief Flash** (150ms) - Flashes opposite to current LED state when:
+  - BLE data received from any Teltonika sensor
+  - Door sensor state changes
+- Highly visible in MQTT-only mode (most common scenario)
+- Non-disruptive to base status pattern
 
 ## Entities
 
